@@ -258,20 +258,27 @@ export default function AdminDashboard() {
     return Object.values(itemMap).sort((a, b) => b.sold - a.sold).slice(0, 5);
   }, [orders]);
 
+const formatOrderLabel = (id) => {
+  if (!id) return '#Order';
+  const str = id.toString();
+  if (str.includes('-')) return `#Order${str.slice(0, 4)}`;
+  return `#Order${str}`;
+};
+
   const recentActivity = useMemo(() => {
     const activities = [];
     orders.forEach(o => {
       activities.push({
         type: 'order',
         icon: ShoppingBag, color: 'text-orange-500', bg: 'bg-orange-100',
-        text: `New order #${o.id} from Table ${o.table_number}`,
+        text: `New ${formatOrderLabel(o.id)} from Table ${o.table_number}`,
         timestamp: new Date(o.created_at).getTime()
       });
       if (o.payment_status === 'verified') {
         activities.push({
           type: 'payment',
           icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-100',
-          text: `Payment verified for order #${o.id}`,
+          text: `Payment verified for ${formatOrderLabel(o.id)}`,
           timestamp: new Date(o.created_at).getTime() + 1000
         });
       }
@@ -573,7 +580,7 @@ export default function AdminDashboard() {
                     <div key={order.id} className="flex justify-between items-center group cursor-pointer">
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-bold text-neutral-900">#{order.id}</span>
+                          <span className="text-sm font-bold text-neutral-900">{formatOrderLabel(order.id)}</span>
                           <span className="text-sm font-semibold text-neutral-600">{t.table} {order.table}</span>
                         </div>
                         <div className="text-[11px] text-neutral-400 font-medium">

@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Bell, CheckCircle, Clock, Utensils, ArrowRight, Check, AlertCircle, ShoppingBag } from 'lucide-react';
 
+const formatOrderLabel = (id) => {
+  if (!id) return '#Order';
+  const str = id.toString();
+  if (str.includes('-')) return `#Order${str.slice(0, 4)}`;
+  return `#Order${str}`;
+};
+
 export default function WaiterApp() {
   const [calls, setCalls] = useState([]);
   const [readyOrders, setReadyOrders] = useState([]);
@@ -169,7 +176,7 @@ export default function WaiterApp() {
                     <div className={`${isReady ? 'bg-emerald-600' : 'bg-neutral-800'} text-white p-4 flex justify-between items-center`}>
                       <div>
                         <span className="font-black text-2xl tracking-tight">Table {order.table_number || '?'}</span>
-                        <p className="text-xs font-bold text-white/80">Order #{order.id}</p>
+                        <p className="text-xs font-bold text-white/80">{formatOrderLabel(order.id)}</p>
                       </div>
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${isReady ? 'bg-white text-emerald-700 animate-pulse' : 'bg-white/20 text-white'}`}>
                         {order.status}

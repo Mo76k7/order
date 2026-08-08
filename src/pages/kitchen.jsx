@@ -241,6 +241,14 @@ export default function KitchenApp() {
   }, [orders]);
 
 
+// Helper to format clean order labels without raw UUIDs
+const formatOrderLabel = (id) => {
+  if (!id) return '#Order';
+  const str = id.toString();
+  if (str.includes('-')) return `#Order${str.slice(0, 4)}`;
+  return `#Order${str}`;
+};
+
   // --- STANDARD MODE CARD ---
   const StandardCard = ({ order }) => {
     const minsElapsed = getMinutesElapsed(order.timestamp);
@@ -271,7 +279,7 @@ export default function KitchenApp() {
         <div className={`${headerBg} text-white p-3 flex flex-col gap-2 transition-colors`}>
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <span className="bg-white/20 px-2 py-1 rounded text-lg font-black tracking-wider">#{order.id}</span>
+              <span className="bg-white/20 px-2 py-1 rounded text-lg font-black tracking-wider">{formatOrderLabel(order.id)}</span>
               <span className="font-bold flex items-center gap-1"><Utensils size={16}/> {t.table} {order.table}</span>
             </div>
             <div className={`flex items-center gap-1.5 font-bold px-2 py-1 rounded-lg ${isLate && order.status !== 'ready' ? 'bg-red-800 text-white' : 'bg-white/20'}`}>
@@ -330,9 +338,9 @@ export default function KitchenApp() {
           {order.status === 'ready' && (
             <>
               <button onClick={() => changeOrderStatus(order.id, 'preparing')} className="p-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl transition-colors" title={t.undo}><RotateCcw size={20} /></button>
-              <button onClick={() => changeOrderStatus(order.id, 'served')} className="flex-1 bg-neutral-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-colors flex justify-center items-center gap-2 shadow-lg">
-                <ArrowRight size={20} /> {t.markServed}
-              </button>
+              <div className="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold py-3 rounded-xl flex justify-center items-center gap-2">
+                <CheckCircle2 size={20} /> Ready for Pickup
+              </div>
             </>
           )}
         </div>
@@ -363,7 +371,7 @@ export default function KitchenApp() {
     } else if (order.status === 'ready') {
       bgClass = 'bg-[#10B981] text-white';
       statusLabel = t.readyStatus;
-      nextStatus = 'served';
+      nextStatus = null;
       undoStatus = 'preparing';
     }
 
@@ -372,7 +380,7 @@ export default function KitchenApp() {
     }
 
     const handleTap = () => {
-      changeOrderStatus(order.id, nextStatus);
+      if (nextStatus) changeOrderStatus(order.id, nextStatus);
     };
 
     const handleUndo = (e) => {
@@ -398,7 +406,7 @@ export default function KitchenApp() {
 
         {/* Header Row: ID and Time */}
         <div className="flex justify-between items-start font-black text-5xl sm:text-6xl mb-4 pr-16 leading-none">
-          <span className="tracking-tighter">#{order.id}</span>
+          <span className="tracking-tighter">{formatOrderLabel(order.id)}</span>
           <div className="flex flex-col items-end">
             <span>{formatTime(order.timestamp)}</span>
             <span className="text-2xl sm:text-3xl opacity-80 mt-1">({minsElapsed}m)</span>
@@ -428,7 +436,7 @@ export default function KitchenApp() {
 
         {/* Status Footer */}
         <div className="text-4xl sm:text-5xl font-black tracking-widest uppercase bg-black/10 p-4 rounded-xl text-center mt-auto">
-          {statusLabel}
+          {order.status === 'ready' ? 'READY FOR PICKUP' : statusLabel}
         </div>
       </div>
     );
@@ -454,14 +462,6 @@ export default function KitchenApp() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Simulate Order Button */}
-            <button 
-              onClick={simulateNewOrder}
-              className="hidden sm:flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-full font-bold transition-colors text-sm"
-            >
-              <PlusSquare size={16} /> {t.testOrder}
-            </button>
-
             {/* Sound Toggle */}
             <button 
               onClick={toggleSound}
@@ -514,13 +514,6 @@ export default function KitchenApp() {
       {/* TV MODE EXIT BUTTON & CONTROLS (Floating) */}
       {isTvMode && (
         <div className="fixed bottom-6 right-6 flex flex-col gap-4 z-50">
-          <button 
-            onClick={simulateNewOrder}
-            className="bg-emerald-600/80 hover:bg-emerald-500 backdrop-blur-md text-white p-4 rounded-full shadow-2xl transition-transform hover:scale-110 flex items-center justify-center"
-            title={t.testOrder}
-          >
-            <PlusSquare size={28} />
-          </button>
           <button 
             onClick={toggleSound}
             className={`backdrop-blur-md p-4 rounded-full shadow-2xl transition-transform hover:scale-110 flex items-center justify-center ${soundEnabled ? 'bg-blue-600/80 text-white' : 'bg-neutral-800/80 text-white/50 hover:bg-neutral-700/80'}`}

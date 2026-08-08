@@ -730,12 +730,19 @@ export default function App() {
     </div>
   );
 
+const formatOrderLabel = (id) => {
+  if (!id) return '#Order';
+  const str = id.toString();
+  if (str.includes('-')) return `#Order${str.slice(0, 4)}`;
+  return `#Order${str}`;
+};
+
   // ACTIVE ORDER VIEW
   const renderActiveOrder = () => (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col animate-fadeIn overflow-y-auto">
       <div className="max-w-2xl w-full mx-auto flex flex-col pt-6 px-4">
         <div className="flex items-center justify-between mb-8 bg-white p-4 rounded-2xl shadow-sm border border-neutral-200">
-          <div><h1 className="text-2xl font-black text-neutral-900">{t.orderNumber}</h1><p className="text-sm font-bold text-neutral-500 mt-1">{t.tableNumber} {orderDetails.tableNumber}</p></div>
+          <div><h1 className="text-2xl font-black text-neutral-900">{activeOrderId ? formatOrderLabel(activeOrderId) : t.orderNumber}</h1><p className="text-sm font-bold text-neutral-500 mt-1">{t.tableNumber} {orderDetails.tableNumber}</p></div>
           <button onClick={handleCallWaiterIconClick} className="bg-orange-100 text-orange-600 p-3 rounded-full hover:bg-orange-200 transition-colors"><Bell size={24} /></button>
         </div>
         <div className="bg-white border border-neutral-200 p-6 rounded-3xl mb-6 shadow-sm">
