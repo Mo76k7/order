@@ -394,27 +394,31 @@ export default function App() {
     setHasOrdered(true);
     setCurrentView('activeOrder');
     try {
-      const tableNum = parseInt(orderDetails.tableNumber) || 0;
-      const { data: newOrder, error } = await supabase
+      const payload = {
+        table_number: parseInt(orderDetails.tableNumber) || 1,
+        items: cart,
+        cart: cart,
+        total_amount: parseFloat(cartTotal),
+        status: 'received',
+        instructions: orderDetails.instructions || ''
+      };
+
+      console.log("Sending order payload:", payload);
+
+      const { data, error } = await supabase
         .from('orders')
-        .insert([{
-          table_number: tableNum,
-          items: cart,
-          cart: cart,
-          total_amount: cartTotal,
-          total: cartTotal,
-          status: 'received',
-          instructions: orderDetails.instructions || '',
-          payment_method: orderDetails.paymentMethod || 'pending',
-          payment_id: orderDetails.paymentId || null,
-          payment_status: 'pending'
-        }])
-        .select()
-        .single();
+        .insert([payload])
+        .select();
 
       if (error) {
-        console.error('Error creating order in Supabase:', error);
-      } else if (newOrder) {
+        console.error("Supabase Order Insert Error:", error.message, error.details, error.hint);
+        alert("Failed to send order to kitchen: " + error.message);
+        return;
+      }
+
+      console.log("Order successfully created in Supabase:", data);
+      if (data && data.length > 0) {
+        const newOrder = data[0];
         setActiveOrderId(newOrder.id);
         localStorage.setItem('activeOrderId', newOrder.id.toString());
       }
@@ -430,27 +434,33 @@ export default function App() {
 
     // Insert order row into Supabase
     try {
-      const tableNum = parseInt(orderDetails.tableNumber) || 0;
-      const { data: newOrder, error } = await supabase
+      const payload = {
+        table_number: parseInt(orderDetails.tableNumber) || 1,
+        items: cart,
+        cart: cart,
+        total_amount: parseFloat(cartTotal),
+        status: 'received',
+        instructions: orderDetails.instructions || ''
+      };
+
+      console.log("Sending order payload:", payload);
+
+      const { data, error } = await supabase
         .from('orders')
-        .insert([{
-          table_number: tableNum,
-          items: cart,
-          cart: cart,
-          total_amount: cartTotal,
-          total: cartTotal,
-          status: 'received',
-          instructions: orderDetails.instructions || '',
-          payment_method: orderDetails.paymentMethod,
-          payment_id: orderDetails.paymentId || null,
-          payment_status: orderDetails.paymentMethod === 'cash' ? 'pending' : 'pending'
-        }])
-        .select()
-        .single();
+        .insert([payload])
+        .select();
 
       if (error) {
-        console.error('Error creating order in Supabase:', error);
-      } else if (newOrder) {
+        console.error("Supabase Order Insert Error:", error.message, error.details, error.hint);
+        alert("Failed to send order to kitchen: " + error.message);
+        setIsVerifying(false);
+        setVerificationStatus('idle');
+        return;
+      }
+
+      console.log("Order successfully created in Supabase:", data);
+      if (data && data.length > 0) {
+        const newOrder = data[0];
         setActiveOrderId(newOrder.id);
         localStorage.setItem('activeOrderId', newOrder.id.toString());
       }

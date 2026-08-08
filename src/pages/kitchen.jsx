@@ -109,8 +109,9 @@ export default function KitchenApp() {
     fetchOrders();
 
     const channel = supabase
-      .channel('public:orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+      .channel('kitchen-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        console.log("Realtime event received in kitchen:", payload);
         if (payload.eventType === 'INSERT') {
           if (payload.new.status !== 'served') {
             setOrders(prev => {
@@ -136,7 +137,9 @@ export default function KitchenApp() {
           setOrders(prev => prev.filter(o => o.id !== payload.old.id.toString()));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Kitchen realtime subscription status:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
