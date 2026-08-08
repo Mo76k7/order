@@ -90,14 +90,15 @@ export default function KitchenApp() {
     status: row.status,
     timestamp: row.created_at,
     instructions: row.instructions || '',
-    items: row.cart || []
+    items: row.items || row.cart || []
   });
 
   const fetchOrders = async () => {
     const { data, error } = await supabase
       .from('orders')
       .select('*')
-      .neq('status', 'served');
+      .neq('status', 'served')
+      .order('created_at', { ascending: false });
     
     if (data) {
       setOrders(data.map(transformOrder));
@@ -108,7 +109,7 @@ export default function KitchenApp() {
     fetchOrders();
 
     const channel = supabase
-      .channel('kitchen-orders')
+      .channel('public:orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
         if (payload.eventType === 'INSERT') {
           if (payload.new.status !== 'served') {
@@ -131,6 +132,8 @@ export default function KitchenApp() {
               order.id === payload.new.id.toString() ? transformOrder(payload.new) : order
             );
           });
+        } else if (payload.eventType === 'DELETE') {
+          setOrders(prev => prev.filter(o => o.id !== payload.old.id.toString()));
         }
       })
       .subscribe();
@@ -189,9 +192,14 @@ export default function KitchenApp() {
 
   // --- LOGIC ---
   const changeOrderStatus = async (orderId, newStatus) => {
-    setOrders(prev => prev.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    ));
+    setOrders(prev => {
+      if (newStatus === 'served') {
+        return prev.filter(order => order.id !== orderId.toString());
+      }
+      return prev.map(order => 
+        order.id === orderId.toString() ? { ...order, status: newStatus } : order
+      );
+    });
 
     await supabase
       .from('orders')
@@ -199,24 +207,18 @@ export default function KitchenApp() {
       .eq('id', orderId);
   };
 
-  const simulateNewOrder = () => {
-    initAudio(); // Ensure audio context is ready on click
-    const newId = Math.floor(Math.random() * 900) + 100 + "";
-    const newTable = Math.floor(Math.random() * 20) + 1 + "";
-    const newOrder = {
-      id: newId,
-      table: newTable,
-      status: 'new',
-      timestamp: new Date().toISOString(),
-      instructions: Math.random() > 0.7 ? 'Extra crispy please' : '',
-      items: [
-        { qty: Math.floor(Math.random() * 3) + 1, name: { en: 'Cheeseburger', am: 'ቺዝ በርገር' } },
-        { qty: Math.floor(Math.random() * 2) + 1, name: { en: 'Fries', am: 'ቺፕስ' } }
-      ]
-    };
-    
-    setOrders(prev => [...prev, newOrder]);
-    if (soundEnabled) playNotificationSound();
+  const simulateNewOrder = async () => {
+    initAudio();
+    const newTable = Math.floor(Math.random() * 20) + 1;
+    await supabase.from('orders').insert([{
+      table_number: newTable,
+      items: [{ qty: 1, name: { en: 'Burger & Fries', am: 'በርገር እና ቺፕስ' } }],
+      cart: [{ qty: 1, name: { en: 'Burger & Fries', am: 'በርገር እና ቺፕስ' } }],
+      total_amount: 350,
+      total: 350,
+      status: 'received',
+      instructions: 'Test order from Kitchen app'
+    }]);
   };
 
   const getMinutesElapsed = (timestamp) => {

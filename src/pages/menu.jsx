@@ -179,93 +179,6 @@ const TRANSLATIONS = {
 const CATEGORY_KEYS = ['All', 'Starters', 'Mains', 'Pizzas', 'Desserts', 'Drinks'];
 const WAITER_REASON_KEYS = ['order', 'water', 'napkins', 'bill', 'other'];
 
-const MENU_ITEMS = [
-  {
-    id: 1,
-    category: 'Starters',
-    price: 350,
-    dietary: ['vegetarian'],
-    image: 'https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?auto=format&fit=crop&q=80&w=400&h=300',
-    name: { en: 'Truffle Parmesan Fries', am: 'ትሩፍል ፓርሜዛን ቺፕስ' },
-    description: { 
-      en: 'Crispy shoestring fries tossed in white truffle oil, topped with aged parmesan and parsley.',
-      am: 'በነጭ ትሩፍል ዘይት የተጠበሰ ቺፕስ፣ በፓርሜዛን ቺዝ እና ፓርስሊ የተጌጠ።'
-    }
-  },
-  {
-    id: 2,
-    category: 'Starters',
-    price: 450,
-    dietary: ['spicy'],
-    image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=400&h=300',
-    name: { en: 'Spicy Calamari', am: 'የሚያቃጥል ካላማሪ' },
-    description: {
-      en: 'Lightly dusted and fried calamari rings served with a spicy marinara dipping sauce.',
-      am: 'በቀላል የተጠበሰ የካላማሪ ቀለበቶች ከሚያቃጥል ማሪናራ ሶስ ጋር።'
-    }
-  },
-  {
-    id: 4,
-    category: 'Mains',
-    price: 650,
-    dietary: [],
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=400&h=300',
-    name: { en: 'ZOM Signature Burger', am: 'የዞም ልዩ በርገር' },
-    description: {
-      en: 'Double beef patty with caramelized onions, special sauce, and cheese on a brioche bun. Served with house fries.',
-      am: 'ድርብ የስጋ ጥብስ ከካራሜላይዝድ ሽንኩርት፣ ልዩ ሶስ፣ እና ቺዝ ጋር። ከቺፕስ ጋር ይቀርባል።'
-    }
-  },
-  {
-    id: 6,
-    category: 'Mains',
-    price: 550,
-    dietary: ['vegetarian', 'spicy'],
-    image: 'https://images.unsplash.com/photo-1608897013039-887f214b9833?auto=format&fit=crop&q=80&w=400&h=300',
-    name: { en: 'Spicy Arrabbiata Pasta', am: 'አራቢያታ ፓስታ' },
-    description: {
-      en: 'Penne pasta tossed in a fiery tomato and garlic sauce, finished with fresh parsley.',
-      am: 'በሚያቃጥል የቲማቲም እና ነጭ ሽንኩርት ሶስ የተሰራ ፔኔ ፓስታ።'
-    }
-  },
-  {
-    id: 7,
-    category: 'Pizzas',
-    price: 600,
-    dietary: ['vegetarian'],
-    image: 'https://images.unsplash.com/photo-1604068549290-dea0e4a30536?auto=format&fit=crop&q=80&w=400&h=300',
-    name: { en: 'Margherita Pizza', am: 'ማርጋሪታ ፒዛ' },
-    description: {
-      en: 'San Marzano tomato sauce, fresh mozzarella, basil, and a drizzle of extra virgin olive oil.',
-      am: 'የቲማቲም ሶስ፣ ትኩስ ሞዛሬላ ቺዝ፣ እና የወይራ ዘይት ጠብታ ያለበት ፒዛ።'
-    }
-  },
-  {
-    id: 9,
-    category: 'Desserts',
-    price: 300,
-    dietary: ['vegetarian'],
-    image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&q=80&w=400&h=300',
-    name: { en: 'Tiramisu', am: 'ቲራሚሱ' },
-    description: {
-      en: 'Classic Italian dessert with espresso-soaked ladyfingers and mascarpone cream.',
-      am: 'በቡና የተነከረ ብስኩት እና ማስካርፖን ክሬም የተሰራ የጣሊያን ጣፋጭ።'
-    }
-  },
-  {
-    id: 11,
-    category: 'Drinks',
-    price: 150,
-    dietary: ['vegan'],
-    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=400&h=300',
-    name: { en: 'Craft Lemonade', am: 'ለስላሳ ሎሚናዳ' },
-    description: {
-      en: 'Freshly squeezed lemons with a hint of mint and agave syrup.',
-      am: 'ትኩስ ሎሚ፣ ሚንት እና አጋቭ ሲሮፕ ያለበት የተፈጥሮ ጭማቂ።'
-    }
-  }
-];
-
 const getItemName = (item, lang) => {
   if (!item || !item.name) return '';
   if (typeof item.name === 'object') return item.name[lang] || item.name.en || '';
@@ -314,12 +227,21 @@ export default function App() {
   const [waiterReason, setWaiterReason] = useState('');
   const [customReason, setCustomReason] = useState('');
 
+  // Restore Active Order ID from localStorage if present
+  useEffect(() => {
+    const savedOrderId = localStorage.getItem('activeOrderId');
+    if (savedOrderId) {
+      setActiveOrderId(savedOrderId);
+      setHasOrdered(true);
+    }
+  }, []);
+
   // Fetch Menu Items from Supabase on mount
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
         const { data, error } = await supabase.from('menu_items').select('*');
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           const mapped = data.map(row => ({
             id: row.id,
             category: row.category || 'Mains',
@@ -337,11 +259,11 @@ export default function App() {
           }));
           setMenuItems(mapped);
         } else {
-          setMenuItems(MENU_ITEMS || []);
+          setMenuItems([]);
         }
       } catch (err) {
         console.error('Failed to fetch menu_items from Supabase:', err);
-        setMenuItems(MENU_ITEMS || []);
+        setMenuItems([]);
       }
     };
     fetchMenuItems();
@@ -397,7 +319,7 @@ export default function App() {
 
   // --- LOGIC & CALCULATIONS ---
   const filteredItems = useMemo(() => {
-    let items = menuItems.length > 0 ? menuItems : MENU_ITEMS;
+    let items = menuItems;
     if (activeCategory !== 'All') {
       items = items.filter(item => item.category === activeCategory);
     }
@@ -472,17 +394,20 @@ export default function App() {
     setHasOrdered(true);
     setCurrentView('activeOrder');
     try {
+      const tableNum = parseInt(orderDetails.tableNumber) || 0;
       const { data: newOrder, error } = await supabase
         .from('orders')
         .insert([{
+          table_number: tableNum,
+          items: cart,
           cart: cart,
-          table_number: orderDetails.tableNumber,
-          instructions: orderDetails.instructions,
+          total_amount: cartTotal,
+          total: cartTotal,
+          status: 'received',
+          instructions: orderDetails.instructions || '',
           payment_method: orderDetails.paymentMethod || 'pending',
           payment_id: orderDetails.paymentId || null,
-          payment_status: 'pending',
-          total: cartTotal,
-          status: 'received'
+          payment_status: 'pending'
         }])
         .select()
         .single();
@@ -491,6 +416,7 @@ export default function App() {
         console.error('Error creating order in Supabase:', error);
       } else if (newOrder) {
         setActiveOrderId(newOrder.id);
+        localStorage.setItem('activeOrderId', newOrder.id.toString());
       }
     } catch (err) {
       console.error('Supabase insertion error:', err);
@@ -504,17 +430,20 @@ export default function App() {
 
     // Insert order row into Supabase
     try {
+      const tableNum = parseInt(orderDetails.tableNumber) || 0;
       const { data: newOrder, error } = await supabase
         .from('orders')
         .insert([{
+          table_number: tableNum,
+          items: cart,
           cart: cart,
-          table_number: orderDetails.tableNumber,
-          instructions: orderDetails.instructions,
+          total_amount: cartTotal,
+          total: cartTotal,
+          status: 'received',
+          instructions: orderDetails.instructions || '',
           payment_method: orderDetails.paymentMethod,
           payment_id: orderDetails.paymentId || null,
-          payment_status: orderDetails.paymentMethod === 'cash' ? 'pending' : 'pending',
-          total: cartTotal,
-          status: 'received'
+          payment_status: orderDetails.paymentMethod === 'cash' ? 'pending' : 'pending'
         }])
         .select()
         .single();
@@ -523,6 +452,7 @@ export default function App() {
         console.error('Error creating order in Supabase:', error);
       } else if (newOrder) {
         setActiveOrderId(newOrder.id);
+        localStorage.setItem('activeOrderId', newOrder.id.toString());
       }
     } catch (err) {
       console.error('Supabase insertion error:', err);

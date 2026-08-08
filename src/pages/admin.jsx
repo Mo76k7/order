@@ -564,7 +564,12 @@ export default function AdminDashboard() {
                   <a href="#" className="text-xs font-bold text-blue-600 hover:underline">{t.viewAll}</a>
                 </div>
                 <div className="flex-grow space-y-4">
-                  {liveOrders.length === 0 ? <p className="text-sm text-neutral-500">No live orders.</p> : liveOrders.map(order => (
+                  {liveOrders.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-neutral-400 gap-2">
+                      <ShoppingBag size={32} className="opacity-40" />
+                      <p className="text-sm font-medium">No live orders found</p>
+                    </div>
+                  ) : liveOrders.map(order => (
                     <div key={order.id} className="flex justify-between items-center group cursor-pointer">
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
