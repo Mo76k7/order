@@ -12,11 +12,13 @@ const TRANSLATIONS = {
   en: {
     appTitle: 'ZOM Tech Kitchen',
     newStatus: 'NEW ORDER',
+    acceptedStatus: 'ACCEPTED',
     preparingStatus: 'PREPARING',
     readyStatus: 'READY',
     table: 'TABLE',
     order: 'Order',
     instructions: 'Special Instructions:',
+    acceptOrder: 'Accept Order',
     startPreparing: 'Start Preparing',
     markReady: 'Mark as Ready',
     markServed: 'Mark Served',
@@ -36,11 +38,13 @@ const TRANSLATIONS = {
   am: {
     appTitle: 'ዞም ቴክ ወጥ ቤት',
     newStatus: 'አዲስ ትዕዛዝ',
+    acceptedStatus: 'ተቀብሏል',
     preparingStatus: 'እየተዘጋጀ ነው',
     readyStatus: 'ዝግጁ ነው',
     table: 'ጠረጴዛ',
     order: 'ትዕዛዝ',
     instructions: 'ልዩ መመሪያዎች:',
+    acceptOrder: 'ትዕዛዝ ተቀበል',
     startPreparing: 'ማዘጋጀት ጀምር',
     markReady: 'ዝግጁ አድርግ',
     markServed: 'አቅርብ',
@@ -104,19 +108,24 @@ export default function KitchenApp() {
     fetchOrders();
 
     const channel = supabase
-      .channel('public:orders')
+      .channel('kitchen-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
         if (payload.eventType === 'INSERT') {
-          setOrders(prev => {
-            if (prev.some(o => o.id === payload.new.id.toString())) return prev;
-            return [...prev, transformOrder(payload.new)];
-          });
-          playNotificationSound();
+          if (payload.new.status !== 'served') {
+            setOrders(prev => {
+              if (prev.some(o => o.id === payload.new.id.toString())) return prev;
+              return [transformOrder(payload.new), ...prev];
+            });
+            playNotificationSound();
+          }
         } else if (payload.eventType === 'UPDATE') {
           setOrders(prev => {
+            if (payload.new.status === 'served') {
+              return prev.filter(o => o.id !== payload.new.id.toString());
+            }
             const exists = prev.some(o => o.id === payload.new.id.toString());
-            if (!exists && payload.new.status !== 'served') {
-               return [...prev, transformOrder(payload.new)];
+            if (!exists) {
+              return [transformOrder(payload.new), ...prev];
             }
             return prev.map(order => 
               order.id === payload.new.id.toString() ? transformOrder(payload.new) : order
@@ -236,8 +245,12 @@ export default function KitchenApp() {
     let statusLabel = t.newStatus;
     let StatusIcon = AlertCircle;
 
-    if (order.status === 'new') {
+    if (order.status === 'received' || order.status === 'new') {
       if (isLate) headerBg = 'bg-[#DC2626] animate-pulse-slow';
+    } else if (order.status === 'accepted') {
+      headerBg = 'bg-[#2563EB]';
+      statusLabel = t.acceptedStatus;
+      StatusIcon = CheckCircle2;
     } else if (order.status === 'preparing') {
       headerBg = 'bg-[#F59E0B]';
       statusLabel = t.preparingStatus;
@@ -280,22 +293,30 @@ export default function KitchenApp() {
           <ul className="space-y-3">
             {order.items.map((item, idx) => (
               <li key={idx} className="flex gap-3 items-start">
-                <span className="bg-neutral-200 text-neutral-800 font-black px-2 py-0.5 rounded text-sm min-w-[28px] text-center">{item.qty}</span>
-                <span className="font-bold text-neutral-800 text-lg leading-tight mt-0.5">{item.name[lang]}</span>
+                <span className="bg-neutral-200 text-neutral-800 font-black px-2 py-0.5 rounded text-sm min-w-[28px] text-center">{item.qty || item.quantity || 1}</span>
+                <span className="font-bold text-neutral-800 text-lg leading-tight mt-0.5">{typeof item.name === 'object' ? (item.name[lang] || item.name.en) : item.name}</span>
               </li>
             ))}
           </ul>
         </div>
 
         <div className="p-3 bg-white border-t border-neutral-100 flex gap-2 mt-auto">
-          {order.status === 'new' && (
-            <button onClick={() => changeOrderStatus(order.id, 'preparing')} className="flex-1 bg-orange-100 hover:bg-orange-500 text-orange-700 hover:text-white font-bold py-3 rounded-xl transition-colors flex justify-center items-center gap-2">
-              <Flame size={20} /> {t.startPreparing}
+          {(order.status === 'received' || order.status === 'new') && (
+            <button onClick={() => changeOrderStatus(order.id, 'accepted')} className="flex-1 bg-blue-100 hover:bg-blue-600 text-blue-700 hover:text-white font-bold py-3 rounded-xl transition-colors flex justify-center items-center gap-2">
+              <CheckCircle2 size={20} /> {t.acceptOrder}
             </button>
+          )}
+          {order.status === 'accepted' && (
+            <>
+              <button onClick={() => changeOrderStatus(order.id, 'received')} className="p-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl transition-colors" title={t.undo}><RotateCcw size={20} /></button>
+              <button onClick={() => changeOrderStatus(order.id, 'preparing')} className="flex-1 bg-orange-100 hover:bg-orange-500 text-orange-700 hover:text-white font-bold py-3 rounded-xl transition-colors flex justify-center items-center gap-2">
+                <Flame size={20} /> {t.startPreparing}
+              </button>
+            </>
           )}
           {order.status === 'preparing' && (
             <>
-              <button onClick={() => changeOrderStatus(order.id, 'new')} className="p-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl transition-colors" title={t.undo}><RotateCcw size={20} /></button>
+              <button onClick={() => changeOrderStatus(order.id, 'accepted')} className="p-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl transition-colors" title={t.undo}><RotateCcw size={20} /></button>
               <button onClick={() => changeOrderStatus(order.id, 'ready')} className="flex-1 bg-green-100 hover:bg-green-600 text-green-700 hover:text-white font-bold py-3 rounded-xl transition-colors flex justify-center items-center gap-2">
                 <Check size={20} /> {t.markReady}
               </button>
@@ -321,14 +342,19 @@ export default function KitchenApp() {
 
     let bgClass = 'bg-[#DC2626] text-white';
     let statusLabel = t.newStatus;
-    let nextStatus = 'preparing';
+    let nextStatus = 'accepted';
     let undoStatus = null;
 
-    if (order.status === 'preparing') {
+    if (order.status === 'accepted') {
+      bgClass = 'bg-[#2563EB] text-white';
+      statusLabel = t.acceptedStatus;
+      nextStatus = 'preparing';
+      undoStatus = 'received';
+    } else if (order.status === 'preparing') {
       bgClass = 'bg-[#F59E0B] text-neutral-900';
       statusLabel = t.preparingStatus;
       nextStatus = 'ready';
-      undoStatus = 'new';
+      undoStatus = 'accepted';
     } else if (order.status === 'ready') {
       bgClass = 'bg-[#10B981] text-white';
       statusLabel = t.readyStatus;
@@ -336,7 +362,7 @@ export default function KitchenApp() {
       undoStatus = 'preparing';
     }
 
-    if (order.status === 'new' && isLate) {
+    if ((order.status === 'received' || order.status === 'new') && isLate) {
       bgClass = 'bg-[#DC2626] text-white animate-pulse-slow';
     }
 
@@ -389,8 +415,8 @@ export default function KitchenApp() {
           )}
           {order.items.map((item, idx) => (
             <div key={idx} className="text-3xl sm:text-4xl font-bold leading-tight flex gap-4">
-              <span className="font-black bg-black/10 px-3 rounded-lg">{item.qty}x</span>
-              <span className="uppercase">{item.name[lang]}</span>
+              <span className="font-black bg-black/10 px-3 rounded-lg">{item.qty || item.quantity || 1}x</span>
+              <span className="uppercase">{typeof item.name === 'object' ? (item.name[lang] || item.name.en) : item.name}</span>
             </div>
           ))}
         </div>

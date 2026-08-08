@@ -352,7 +352,7 @@ export default function App() {
     if (!activeOrderId) return;
 
     const channel = supabase
-      .channel('public:orders')
+      .channel('order-status-channel')
       .on(
         'postgres_changes',
         {
@@ -373,7 +373,8 @@ export default function App() {
 
           if (updatedOrder.status !== undefined) {
             const statusMap = {
-              'new': 0,
+              'received': 0,
+              'accepted': 1,
               'preparing': 2,
               'ready': 3,
               'served': 4
@@ -390,7 +391,7 @@ export default function App() {
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [activeOrderId]);
 
@@ -467,6 +468,35 @@ export default function App() {
     document.body.removeChild(textArea);
   };
 
+  const sendToKitchen = async () => {
+    setHasOrdered(true);
+    setCurrentView('activeOrder');
+    try {
+      const { data: newOrder, error } = await supabase
+        .from('orders')
+        .insert([{
+          cart: cart,
+          table_number: orderDetails.tableNumber,
+          instructions: orderDetails.instructions,
+          payment_method: orderDetails.paymentMethod || 'pending',
+          payment_id: orderDetails.paymentId || null,
+          payment_status: 'pending',
+          total: cartTotal,
+          status: 'received'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating order in Supabase:', error);
+      } else if (newOrder) {
+        setActiveOrderId(newOrder.id);
+      }
+    } catch (err) {
+      console.error('Supabase insertion error:', err);
+    }
+  };
+
   // --- AUTO-VERIFICATION SIMULATION & SUPABASE INSERTION ---
   const handlePaymentSubmit = async () => {
     setIsVerifying(true);
@@ -484,7 +514,7 @@ export default function App() {
           payment_id: orderDetails.paymentId || null,
           payment_status: orderDetails.paymentMethod === 'cash' ? 'pending' : 'pending',
           total: cartTotal,
-          status: 'new'
+          status: 'received'
         }])
         .select()
         .single();
@@ -749,7 +779,7 @@ export default function App() {
             </div>
 
             <div className="mt-2 mb-8">
-              <button disabled={!orderDetails.tableNumber} onClick={() => { setHasOrdered(true); setCurrentView('activeOrder'); }} className="w-full bg-[#EA580C] disabled:bg-neutral-300 text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] flex justify-center items-center gap-2 text-lg">
+              <button disabled={!orderDetails.tableNumber} onClick={sendToKitchen} className="w-full bg-[#EA580C] disabled:bg-neutral-300 text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] flex justify-center items-center gap-2 text-lg">
                 {hasOrdered ? t.updateOrder : t.sendToKitchen}
               </button>
               {!orderDetails.tableNumber && <p className="text-center text-red-500 text-sm mt-3 font-bold animate-pulse">{t.tableRequired}</p>}

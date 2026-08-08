@@ -199,14 +199,19 @@ export default function AdminDashboard() {
     fetchData();
 
     const ordersChannel = supabase
-      .channel('admin:orders')
+      .channel('admin-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
         if (payload.eventType === 'INSERT') {
-          if (new Date(payload.new.created_at) >= startOfToday) {
-            setOrders(prev => [payload.new, ...prev]);
-          }
+          setOrders(prev => {
+            if (prev.some(o => o.id === payload.new.id)) return prev;
+            return [payload.new, ...prev];
+          });
         } else if (payload.eventType === 'UPDATE') {
-          setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new : o));
+          setOrders(prev => {
+            const exists = prev.some(o => o.id === payload.new.id);
+            if (!exists) return [payload.new, ...prev];
+            return prev.map(o => o.id === payload.new.id ? payload.new : o);
+          });
         }
       })
       .subscribe();
@@ -215,9 +220,10 @@ export default function AdminDashboard() {
       .channel('admin:waiter_calls')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'waiter_calls' }, payload => {
         if (payload.eventType === 'INSERT') {
-          if (new Date(payload.new.created_at) >= startOfToday) {
-            setWaiterCalls(prev => [payload.new, ...prev]);
-          }
+          setWaiterCalls(prev => {
+            if (prev.some(w => w.id === payload.new.id)) return prev;
+            return [payload.new, ...prev];
+          });
         } else if (payload.eventType === 'UPDATE') {
           setWaiterCalls(prev => prev.map(w => w.id === payload.new.id ? payload.new : w));
         }
