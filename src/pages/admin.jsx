@@ -273,6 +273,7 @@ export default function AdminDashboard() {
   const [editingCustomMethod, setEditingCustomMethod] = useState(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [selectedQRTable, setSelectedQRTable] = useState(null);
+  const [selectedQrTable, setSelectedQrTable] = useState(null);
 
   // SMS Feed & Verification States
   const [incomingSmsList, setIncomingSmsList] = useState([]);
@@ -3107,112 +3108,117 @@ export default function AdminDashboard() {
       )}
 
       {/* --- TABLE QR CODE MODAL --- */}
-      {(isQRModalOpen || selectedQrTable !== null) && (selectedQRTable || selectedQrTable) && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
-          onClick={(e) => { 
-            if (e.target === e.currentTarget) {
-              setIsQRModalOpen(false);
-              setSelectedQRTable(null);
-              setSelectedQrTable(null);
-            } 
-          }}
-        >
-          <div className="max-h-[90vh] flex flex-col w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
-            {/* Header */}
-            <div className="p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg"><QrCode size={18}/></div>
-                <h3 className="text-lg font-black text-neutral-900">Table {selectedQRTable || selectedQrTable} QR Code</h3>
-              </div>
-              <button 
-                type="button"
-                onClick={() => {
-                  setIsQRModalOpen(false);
-                  setSelectedQRTable(null);
-                  setSelectedQrTable(null);
-                }} 
-                className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg hover:bg-neutral-100 transition-colors"
-              >
-                <X size={20}/>
-              </button>
-            </div>
+      {(() => {
+        const currentTable = selectedQrTable?.number || selectedQrTable?.table_number || selectedQrTable || selectedQRTable?.number || selectedQRTable?.table_number || selectedQRTable;
+        const isOpen = (isQRModalOpen || selectedQrTable !== null || selectedQRTable !== null) && Boolean(currentTable);
+        if (!isOpen) return null;
 
-            {/* Body */}
-            <div className="overflow-y-auto p-6 space-y-5 flex-1 flex flex-col items-center text-center">
-              <p className="text-xs font-semibold text-neutral-500">
-                Customers can scan this QR code at Table {selectedQRTable || selectedQrTable} to immediately access the menu with their table automatically assigned.
-              </p>
-
-              <div id="table-qr-container" className="p-5 bg-white border-2 border-neutral-200 rounded-2xl shadow-md flex items-center justify-center">
-                <QRCodeSVG 
-                  value={`https://order-iota-nine.vercel.app/?table=${selectedQRTable || selectedQrTable}`} 
-                  size={200}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
-
-              <div className="w-full bg-neutral-50 p-3 rounded-xl border border-neutral-200 flex items-center justify-between gap-2 text-xs font-bold text-neutral-700">
-                <span className="truncate">https://order-iota-nine.vercel.app/?table={selectedQRTable || selectedQrTable}</span>
+        return (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+            onClick={(e) => { 
+              if (e.target === e.currentTarget) {
+                setIsQRModalOpen(false);
+                setSelectedQRTable(null);
+                setSelectedQrTable(null);
+              } 
+            }}
+          >
+            <div className="max-h-[90vh] flex flex-col w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
+              {/* Header */}
+              <div className="p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg"><QrCode size={18}/></div>
+                  <h3 className="text-lg font-black text-neutral-900">Table {currentTable} QR Code</h3>
+                </div>
                 <button 
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText(`https://order-iota-nine.vercel.app/?table=${selectedQRTable || selectedQrTable}`);
-                    alert("Table QR URL copied to clipboard!");
+                    setIsQRModalOpen(false);
+                    setSelectedQRTable(null);
+                    setSelectedQrTable(null);
                   }} 
-                  className="text-orange-600 hover:bg-orange-100 p-2 rounded-lg text-xs font-extrabold flex items-center gap-1 transition-colors flex-shrink-0"
+                  className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg hover:bg-neutral-100 transition-colors"
                 >
-                  Copy
+                  <X size={20}/>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="overflow-y-auto p-6 space-y-5 flex-1 flex flex-col items-center text-center">
+                <p className="text-xs font-semibold text-neutral-500">
+                  Customers can scan this QR code at Table {currentTable} to immediately access the menu with their table automatically assigned.
+                </p>
+
+                <div id="table-qr-container" className="p-5 bg-white border-2 border-neutral-200 rounded-2xl shadow-md flex items-center justify-center">
+                  <QRCodeSVG 
+                    value={`https://order-iota-nine.vercel.app/?table=${currentTable}`} 
+                    size={200}
+                    level="H"
+                    includeMargin={true}
+                  />
+                </div>
+
+                <div className="w-full bg-neutral-50 p-3 rounded-xl border border-neutral-200 flex items-center justify-between gap-2 text-xs font-bold text-neutral-700">
+                  <span className="truncate">https://order-iota-nine.vercel.app/?table={currentTable}</span>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`https://order-iota-nine.vercel.app/?table=${currentTable}`);
+                      alert("Table QR URL copied to clipboard!");
+                    }} 
+                    className="text-orange-600 hover:bg-orange-100 p-2 rounded-lg text-xs font-extrabold flex items-center gap-1 transition-colors flex-shrink-0"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 sticky bottom-0 z-10">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsQRModalOpen(false);
+                    setSelectedQRTable(null);
+                    setSelectedQrTable(null);
+                  }} 
+                  className="px-5 py-2.5 bg-neutral-200 hover:bg-neutral-300 font-bold text-neutral-700 text-xs rounded-xl transition-colors"
+                >
+                  Close
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const svg = document.querySelector('#table-qr-container svg');
+                    if (!svg) return;
+                    const svgData = new XMLSerializer().serializeToString(svg);
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    img.onload = () => {
+                      canvas.width = img.width + 40;
+                      canvas.height = img.height + 40;
+                      ctx.fillStyle = '#FFFFFF';
+                      ctx.fillRect(0, 0, canvas.width, canvas.height);
+                      ctx.drawImage(img, 20, 20);
+                      const pngFile = canvas.toDataURL('image/png');
+                      const downloadLink = document.createElement('a');
+                      downloadLink.download = `table_${currentTable}_qr.png`;
+                      downloadLink.href = pngFile;
+                      downloadLink.click();
+                    };
+                    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                  }} 
+                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 font-bold text-white text-xs rounded-xl shadow-md shadow-orange-600/20 transition-all flex items-center gap-1.5"
+                >
+                  <Download size={14} /> Download / Print QR
                 </button>
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 sticky bottom-0 z-10">
-              <button 
-                type="button" 
-                onClick={() => {
-                  setIsQRModalOpen(false);
-                  setSelectedQRTable(null);
-                  setSelectedQrTable(null);
-                }} 
-                className="px-5 py-2.5 bg-neutral-200 hover:bg-neutral-300 font-bold text-neutral-700 text-xs rounded-xl transition-colors"
-              >
-                Close
-              </button>
-              <button 
-                type="button"
-                onClick={() => {
-                  const svg = document.querySelector('#table-qr-container svg');
-                  if (!svg) return;
-                  const svgData = new XMLSerializer().serializeToString(svg);
-                  const canvas = document.createElement('canvas');
-                  const ctx = canvas.getContext('2d');
-                  const img = new Image();
-                  const targetTable = selectedQRTable || selectedQrTable;
-                  img.onload = () => {
-                    canvas.width = img.width + 40;
-                    canvas.height = img.height + 40;
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 20, 20);
-                    const pngFile = canvas.toDataURL('image/png');
-                    const downloadLink = document.createElement('a');
-                    downloadLink.download = `table_${targetTable}_qr.png`;
-                    downloadLink.href = pngFile;
-                    downloadLink.click();
-                  };
-                  img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-                }} 
-                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 font-bold text-white text-xs rounded-xl shadow-md shadow-orange-600/20 transition-all flex items-center gap-1.5"
-              >
-                <Download size={14} /> Download / Print QR
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
