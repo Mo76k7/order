@@ -158,10 +158,6 @@ export const parseSMSMessage = (messageText) => {
   // Timestamp: Extract formatted date and time strings (DD/MM/YYYY HH:MM:SS)
   let timestamp = null;
   const timeMatch = messageText.match(/\b(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)\b/);
-  if (timeMatch && timeMatch[1]) {
-    timestamp = timeMatch[1].trim();
-  }
-
   return {
     transactionId,
     amount,
@@ -170,6 +166,80 @@ export const parseSMSMessage = (messageText) => {
     originalText: messageText
   };
 };
+
+// Utilities for parsing raw Telebirr & CBE SMS messages
+export function parseBankSMS(messageText) {
+  if (!messageText) return null;
+
+  const isTelebirr = /telebirr|ተቀብለዋል|Ethio telecom/i.test(messageText);
+  const isCBE = /CBE|CBE Birr|Deposit of ETB|1000\*\*\*\*/i.test(messageText);
+
+  let txn_ref = '';
+  let amount = 0;
+  let sender_name = 'Unknown';
+
+  // 1. Extract Transaction Reference
+  const refMatch = messageText.match(/(?:ቁጥርዎ|Ref:?|Txn:?)\s*([A-Z0-9]+)/i);
+  if (refMatch) txn_ref = refMatch[1];
+
+  // 2. Extract ETB Amount
+  const amountMatch = messageText.match(/(?:ETB|ብር)\s*([\d,]+\.?\d*)|([\d,]+\.?\d*)\s*(?:ETB|ብር)/i);
+  if (amountMatch) {
+    const rawAmt = amountMatch[1] || amountMatch[2];
+    amount = parseFloat(rawAmt.replace(/,/g, ''));
+  }
+
+  // 3. Extract Sender Name
+  const senderMatch = messageText.match(/(?:from|ከ|by)\s+([A-Za-z\s]+?)(?=\(|\.|\,|Ref|ብር|ቁጥርዎ|$)/i);
+  if (senderMatch) {
+    sender_name = senderMatch[1].trim();
+  }
+
+  return {
+    provider: isTelebirr ? 'Telebirr' : isCBE ? 'CBE Birr' : 'Bank Transfer',
+    txn_ref,
+    amount,
+    sender_name,
+    raw: messageText
+  };
+}
+
+// Comparison Function: Compares Customer Input / OCR Data vs Received SMS
+export function compareReceiptWithSMS(order, smsList) {
+  if (!order || !order.transaction_ref) {
+    return { status: 'PENDING', match: null, reason: 'No Transaction Ref Provided' };
+  }
+
+  // Find corresponding SMS by Txn Reference ID
+  const matchingSMS = (smsList || []).find((sms) => {
+    const parsed = parseBankSMS(sms.message);
+    return parsed && parsed.txn_ref && parsed.txn_ref.toLowerCase() === order.transaction_ref.toLowerCase();
+  });
+
+  if (!matchingSMS) {
+    return { status: 'PENDING', match: null, reason: 'Waiting for Bank SMS...' };
+  }
+
+  const parsedSMS = parseBankSMS(matchingSMS.message);
+
+  // Compare Extracted Amount vs Received SMS Amount
+  const orderAmount = order.total_amount || order.total || 0;
+  const amountMatches = Math.abs(parsedSMS.amount - orderAmount) < 0.01;
+
+  if (amountMatches) {
+    return {
+      status: 'APPROVED',
+      match: parsedSMS,
+      reason: 'Transaction Ref & Amount Confirmed'
+    };
+  } else {
+    return {
+      status: 'MISMATCH',
+      match: parsedSMS,
+      reason: `Amount mismatch: Receipt (${orderAmount} ETB) vs SMS (${parsedSMS.amount} ETB)`
+    };
+  }
+}
 
 export default function AdminDashboard() {
   const [lang, setLang] = useState('en');
@@ -390,53 +460,47 @@ export default function AdminDashboard() {
     try {
       await supabase
         .from('orders')
-        .update({ status: 'APPROVED', payment_status: 'paid' })
+        .update({ status: 'paid', payment_status: 'paid', payment_verified: true })
         .eq('id', orderId);
 
-      setTodayOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'APPROVED', payment_status: 'paid' } : o));
-      setAllHistoryOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'APPROVED', payment_status: 'paid' } : o));
+      setTodayOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'paid', payment_status: 'paid', payment_verified: true } : o));
+      setAllHistoryOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'paid', payment_status: 'paid', payment_verified: true } : o));
     } catch (err) {
       console.error("Failed to approve order:", err);
     }
   };
 
-  // Automatic Order Matching Logic:
-  // Automatically match incoming_sms entries with orders where orders.transaction_ref === extracted_txn_id.
-  // When a match is found, mark the order as 'APPROVED' and set its status to paid in Supabase.
+  // Automatic Real-Time Payment Verification & Supabase Sync:
+  // When comparison.status === 'APPROVED', automatically update orders in Supabase to status = 'paid' and payment_verified = true
   useEffect(() => {
     if (!incomingSmsList.length || !allHistoryOrders.length) return;
 
-    const processAutoMatches = async () => {
-      for (const sms of incomingSmsList) {
-        if (!sms || !sms.message) continue;
-        const parsed = parseSMSMessage(sms.message);
-        if (!parsed.transactionId) continue;
+    const autoVerifyOrders = async () => {
+      for (const order of allHistoryOrders) {
+        const comparison = compareReceiptWithSMS(order, incomingSmsList);
+        const isAlreadyVerified = order.payment_verified === true || order.status === 'paid';
 
-        const matchingOrder = allHistoryOrders.find(order => {
-          const extractedRef = (order.transaction_ref || order.payment_id || '').toString().trim();
-          if (!extractedRef) return false;
-          const isMatched = extractedRef.toLowerCase() === parsed.transactionId.toLowerCase();
-          const isAlreadyApproved = order.status === 'APPROVED' && order.payment_status === 'paid';
-          return isMatched && !isAlreadyApproved;
-        });
-
-        if (matchingOrder) {
+        if (comparison.status === 'APPROVED' && !isAlreadyVerified) {
           try {
             await supabase
               .from('orders')
-              .update({ status: 'APPROVED', payment_status: 'paid' })
-              .eq('id', matchingOrder.id);
+              .update({ 
+                status: 'paid', 
+                payment_status: 'paid', 
+                payment_verified: true 
+              })
+              .eq('id', order.id);
 
-            setTodayOrders(prev => prev.map(o => o.id === matchingOrder.id ? { ...o, status: 'APPROVED', payment_status: 'paid' } : o));
-            setAllHistoryOrders(prev => prev.map(o => o.id === matchingOrder.id ? { ...o, status: 'APPROVED', payment_status: 'paid' } : o));
+            setTodayOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'paid', payment_status: 'paid', payment_verified: true } : o));
+            setAllHistoryOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'paid', payment_status: 'paid', payment_verified: true } : o));
           } catch (err) {
-            console.error("Auto match update failed for order:", matchingOrder.id, err);
+            console.error('Error auto verifying order:', order.id, err);
           }
         }
       }
     };
 
-    processAutoMatches();
+    autoVerifyOrders();
   }, [incomingSmsList, allHistoryOrders]);
 
   const handleSimulateSms = async (e) => {
@@ -2289,7 +2353,7 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   incomingSmsList.map((sms, index) => {
-                    const parsed = parseSMSMessage(sms.message);
+                    const parsed = parseBankSMS(sms.message);
                     const smsKey = sms.id || index;
                     const isExpanded = !!expandedSmsMap[smsKey];
 
@@ -2298,13 +2362,8 @@ export default function AdminDashboard() {
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-md border border-orange-500/20">
-                              {sms.sender || 'Bank SMS'}
+                              [{parsed?.provider || 'Bank Transfer'}]
                             </span>
-                            {parsed.timestamp && (
-                              <span className="text-[10px] font-semibold text-neutral-400 bg-neutral-950 px-2 py-0.5 rounded-md border border-neutral-800">
-                                {parsed.timestamp}
-                              </span>
-                            )}
                           </div>
                           <span className="text-[11px] font-semibold text-neutral-400 flex items-center gap-1">
                             <Clock size={12} /> {getTimeAgo(sms.created_at || new Date())}
@@ -2314,21 +2373,21 @@ export default function AdminDashboard() {
                         {/* Parsed attributes prominently displayed */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-neutral-950/80 p-3 rounded-xl border border-neutral-800 text-xs">
                           <div>
-                            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Transaction Ref</span>
-                            <span className="inline-block bg-orange-500/20 text-orange-300 font-extrabold font-mono px-2 py-0.5 rounded border border-orange-500/30 text-xs">
-                              Ref: {parsed.transactionId || 'N/A'}
+                            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Txn Ref</span>
+                            <span className="inline-block bg-orange-500/20 text-orange-300 font-extrabold font-mono px-2 py-0.5 rounded border border-orange-500/30 text-xs truncate max-w-full">
+                              {parsed?.txn_ref || 'N/A'}
                             </span>
                           </div>
                           <div>
                             <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Sender</span>
                             <span className="font-bold text-white text-xs truncate block">
-                              {parsed.senderName || 'Unknown'}
+                              {parsed?.sender_name || 'Unknown'}
                             </span>
                           </div>
                           <div>
                             <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Amount</span>
                             <span className="font-black text-emerald-400 text-sm tracking-tight block">
-                              {parsed.amount ? `${parsed.amount} ETB` : 'N/A'}
+                              {parsed?.amount ? `${parsed.amount} ETB` : '0 ETB'}
                             </span>
                           </div>
                         </div>
@@ -2394,7 +2453,7 @@ export default function AdminDashboard() {
             <div>
               <div className="flex justify-between items-center pb-4 border-b border-neutral-100 mb-5">
                 <div>
-                  <h3 className="font-extrabold text-lg text-neutral-900 tracking-tight">OCR Receipts & Auto-Match Log</h3>
+                  <h3 className="font-extrabold text-lg text-neutral-900 tracking-tight">OCR Screenshot vs Bank SMS Verification Log</h3>
                   <p className="text-[11px] text-neutral-500">Extracts customer transaction references and matches with live SMS</p>
                 </div>
                 <span className="text-xs font-bold bg-neutral-100 text-neutral-700 px-3 py-1 rounded-full border border-neutral-200">
@@ -2410,68 +2469,69 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   verificationOrders.map((order) => {
+                    const comparison = compareReceiptWithSMS(order, incomingSmsList);
                     const extractedRef = order.transaction_ref || order.payment_id || 'N/A';
-                    
-                    // Auto-match check against all incoming SMS messages using parseSMSMessage
-                    const isMatchedBySms = incomingSmsList.some(sms => {
-                      const parsed = parseSMSMessage(sms.message);
-                      return extractedRef !== 'N/A' && 
-                             parsed.transactionId && 
-                             parsed.transactionId.toLowerCase() === extractedRef.toLowerCase();
-                    });
-
-                    const isPaid = order.status === 'APPROVED' || order.payment_status === 'paid' || order.payment_status === 'verified' || isMatchedBySms;
+                    const orderAmount = order.total_amount || order.total || 0;
+                    const isApproved = comparison.status === 'APPROVED' || order.status === 'paid' || order.payment_verified === true;
+                    const isMismatch = comparison.status === 'MISMATCH';
 
                     return (
                       <div 
                         key={order.id} 
                         className={`p-5 rounded-2xl border-2 transition-all shadow-sm ${
-                          isPaid 
+                          isApproved 
                             ? 'border-emerald-500 bg-emerald-50/40' 
+                            : isMismatch
+                            ? 'border-rose-300 bg-rose-50/30'
                             : 'border-neutral-200 bg-white hover:border-neutral-300'
                         }`}
                       >
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-black text-lg text-neutral-900">
-                                {formatOrderLabel(order.id)}
-                              </span>
-                              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200">
-                                Table {order.table_number || 1}
+                              <span className="font-black text-base text-neutral-900">
+                                Table #{order.table_number || 1} – {orderAmount} ETB ({order.payment_method || 'Telebirr'})
                               </span>
                             </div>
                             <p className="text-xs text-neutral-500 font-medium mt-0.5">
-                              {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Method: <span className="font-bold text-neutral-800 uppercase">{order.payment_method || 'Telebirr'}</span>
+                              {formatOrderLabel(order.id)} • {new Date(order.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
 
                           {/* Status Badge */}
-                          {isPaid ? (
-                            <span className="text-xs font-black uppercase px-3 py-1 rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/20 flex items-center gap-1">
-                              <CheckCircle2 size={14} /> APPROVED / MATCHED
-                            </span>
-                          ) : (
-                            <span className="text-xs font-bold uppercase px-3 py-1 rounded-xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1 animate-pulse">
-                              <Clock size={12} /> PENDING SMS MATCH
-                            </span>
-                          )}
+                          <span className={`text-xs font-black uppercase px-3 py-1 rounded-xl flex items-center gap-1 border ${
+                            isApproved
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
+                              : isMismatch
+                              ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-600/20'
+                              : 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
+                          }`}>
+                            {isApproved ? (
+                              <><CheckCircle2 size={14} /> APPROVED</>
+                            ) : isMismatch ? (
+                              <><AlertTriangle size={14} /> MISMATCH</>
+                            ) : (
+                              <><Clock size={12} /> PENDING</>
+                            )}
+                          </span>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 bg-neutral-50 p-3 rounded-xl border border-neutral-200 text-xs mb-3">
                           <div>
-                            <span className="text-neutral-400 font-semibold block text-[10px] uppercase">Total Amount</span>
-                            <span className="font-black text-neutral-900 text-sm">{(order.total_amount || order.total || 0).toFixed(2)} Br</span>
-                          </div>
-                          <div>
-                            <span className="text-neutral-400 font-semibold block text-[10px] uppercase">Extracted Ref (OCR)</span>
+                            <span className="text-neutral-400 font-semibold block text-[10px] uppercase">Txn Ref</span>
                             <span className="font-mono font-bold text-orange-600 text-xs truncate block">
                               {extractedRef}
                             </span>
                           </div>
+                          <div>
+                            <span className="text-neutral-400 font-semibold block text-[10px] uppercase">Verification Status</span>
+                            <span className="font-semibold text-neutral-800 text-xs block truncate" title={comparison.reason}>
+                              {comparison.reason}
+                            </span>
+                          </div>
                         </div>
 
-                        {!isPaid && (
+                        {!isApproved && (
                           <button 
                             onClick={() => handleAutoApproveOrder(order.id)}
                             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
