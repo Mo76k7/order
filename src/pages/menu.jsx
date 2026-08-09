@@ -8,6 +8,7 @@ import {
   Banknote, Copy, CreditCard, Wallet, QrCode
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import Tesseract from 'tesseract.js';
 
 // --- MULTILINGUAL DATA & TRANSLATIONS ---
 
@@ -242,8 +243,65 @@ export default function App() {
   const [waiterReason, setWaiterReason] = useState('');
   const [customReason, setCustomReason] = useState('');
 
-  // Table Locking State
+  // Table Locking & OCR Verification State
   const [isTableLocked, setIsTableLocked] = useState(false);
+  const [isOcrScanning, setIsOcrScanning] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+
+  const handleReceiptUpload = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setOrderDetails(prev => ({ ...prev, receiptFile: file }));
+    setIsOcrScanning(true);
+    setOcrProgress(0);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const imageSrc = reader.result;
+        const result = await Tesseract.recognize(imageSrc, 'eng', {
+          logger: (m) => {
+            if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+              setOcrProgress(Math.round(m.progress * 100));
+            }
+          }
+        });
+
+        const extractedText = result.data ? result.data.text : '';
+        console.log("OCR Extracted Text:", extractedText);
+
+        // Regex parsing for Telebirr / CBE / Chapa Txn IDs
+        let matchedRef = '';
+        const refRegex = /(?:Ref|Txn|Transaction|Id|No|ID|code|reference|number)[^\w]*([A-Z0-9]{6,16})/i;
+        const match = extractedText.match(refRegex);
+
+        if (match && match[1]) {
+          matchedRef = match[1].toUpperCase();
+        } else {
+          // Fallback pattern matching 8-14 character uppercase alphanumeric words
+          const words = extractedText.split(/\s+/);
+          const candidate = words.find(w => /^[A-Z0-9]{8,14}$/i.test(w) && /[A-Z]/.test(w) && /[0-9]/.test(w));
+          if (candidate) {
+            matchedRef = candidate.toUpperCase();
+          }
+        }
+
+        if (matchedRef) {
+          setOrderDetails(prev => ({ ...prev, paymentId: matchedRef, transactionRef: matchedRef }));
+          showToast(`Receipt Scanned! Ref: ${matchedRef}`);
+        } else {
+          showToast("Scanned! Please verify Transaction ID below.");
+        }
+
+        setIsOcrScanning(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("OCR Error:", err);
+      setIsOcrScanning(false);
+    }
+  };
 
   // Restore Active Order ID & Parse ?table=N URL parameter on mount
   useEffect(() => {
@@ -490,6 +548,10 @@ export default function App() {
         cart: cart,
         total_amount: parseFloat(cartTotal),
         status: 'received',
+        payment_method: orderDetails.paymentMethod || 'cash',
+        payment_status: orderDetails.paymentMethod === 'cash' ? 'verified' : 'pending',
+        transaction_ref: orderDetails.transactionRef || orderDetails.paymentId || '',
+        payment_id: orderDetails.paymentId || orderDetails.transactionRef || '',
         instructions: orderDetails.instructions || ''
       };
 
@@ -530,6 +592,10 @@ export default function App() {
         cart: cart,
         total_amount: parseFloat(cartTotal),
         status: 'received',
+        payment_method: orderDetails.paymentMethod || 'cash',
+        payment_status: orderDetails.paymentMethod === 'cash' ? 'verified' : 'pending',
+        transaction_ref: orderDetails.transactionRef || orderDetails.paymentId || '',
+        payment_id: orderDetails.paymentId || orderDetails.transactionRef || '',
         instructions: orderDetails.instructions || ''
       };
 
@@ -1017,20 +1083,40 @@ const formatOrderLabel = (id) => {
                   <div className="absolute bg-white px-3 text-xs font-bold text-neutral-400">{t.or}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-neutral-700 mb-2">{t.uploadReceipt}</label>
+                  <label className="block text-sm font-bold text-neutral-700 mb-2">{t.uploadReceipt} (Auto OCR Scanner)</label>
                   <div className="relative">
-                    <input type="file" accept="image/*" onChange={(e) => { if(e.target.files && e.target.files[0]) setOrderDetails({...orderDetails, receiptFile: e.target.files[0]}); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                    <div className={`w-full border-2 border-dashed rounded-xl px-4 py-6 flex flex-col items-center justify-center transition-all ${orderDetails.receiptFile ? 'border-green-500 bg-green-50' : 'border-neutral-300 bg-neutral-50 hover:bg-neutral-100'}`}>
-                      {orderDetails.receiptFile ? (
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleReceiptUpload} 
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                      disabled={isOcrScanning}
+                    />
+                    <div className={`w-full border-2 border-dashed rounded-xl px-4 py-6 flex flex-col items-center justify-center transition-all ${
+                      isOcrScanning ? 'border-orange-500 bg-orange-50/50' : orderDetails.receiptFile ? 'border-green-500 bg-green-50' : 'border-neutral-300 bg-neutral-50 hover:bg-neutral-100'
+                    }`}>
+                      {isOcrScanning ? (
+                        <>
+                          <Loader2 size={32} className="text-orange-600 animate-spin mb-2" />
+                          <span className="text-orange-700 font-bold">Scanning Receipt (OCR)... {ocrProgress}%</span>
+                          <span className="text-orange-600/70 text-xs mt-1">Extracting Transaction Ref ID...</span>
+                        </>
+                      ) : orderDetails.receiptFile ? (
                         <>
                           <CheckCircle2 size={32} className="text-green-600 mb-2" />
                           <span className="text-green-700 font-bold">{t.receiptUploaded}</span>
                           <span className="text-green-600/70 text-xs mt-1 max-w-[200px] truncate">{orderDetails.receiptFile.name}</span>
+                          {orderDetails.paymentId && (
+                            <span className="mt-2 bg-green-200 text-green-900 font-black text-xs px-2.5 py-1 rounded-lg">
+                              Ref: {orderDetails.paymentId}
+                            </span>
+                          )}
                         </>
                       ) : (
                         <>
                           <Upload size={32} className="text-neutral-400 mb-2" />
                           <span className="text-neutral-600 font-bold">{t.tapToUpload}</span>
+                          <span className="text-neutral-400 text-xs mt-1">Automatic Transaction ID Detection</span>
                         </>
                       )}
                     </div>
