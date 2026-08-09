@@ -2583,7 +2583,7 @@ export default function AdminDashboard() {
           <SidebarCategory label={t.navOrders} />
           <SidebarItem icon={Clock} label={t.liveOrders} id="liveOrders" badge={liveActiveOrdersList.length > 0 ? liveActiveOrdersList.length.toString() : null} />
           <SidebarItem icon={ListOrdered} label={t.orderHistory} id="orderHistory" />
-          <SidebarItem icon={ScanText} label="SMS Verification" id="verification" />
+          <SidebarItem icon={ScanText} label="SMS Verification" id="sms_verification" />
           <SidebarItem icon={DollarSign} label={t.payments} id="payments" />
           
           <SidebarCategory label={t.navMenu} />
@@ -2666,7 +2666,7 @@ export default function AdminDashboard() {
             {activeTab === 'dashboard' && renderDashboardView()}
             {activeTab === 'live_orders' && renderLiveOrdersView()}
             {activeTab === 'order_history' && renderOrderHistoryView()}
-            {activeTab === 'verification' && renderVerificationView()}
+            {(activeTab === 'sms_verification' || activeTab === 'verification') && renderVerificationView()}
             {activeTab === 'menu' && renderMenuView()}
             {activeTab === 'payments' && renderPaymentsView()}
             {activeTab === 'customers' && renderCustomersView()}
