@@ -780,52 +780,17 @@ export default function App() {
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-sm space-y-6">
-              
-              {/* Table Selection Dropdown / Locked QR Table Indicator */}
+            <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-sm">
               <div>
-                <label className="flex items-center gap-2 font-bold text-neutral-900 mb-2"><MapPin size={18} className="text-orange-500"/> {t.tableNumber} <span className="text-red-500">*</span></label>
-                {isTableLocked ? (
-                  <div className="bg-orange-50 border-2 border-orange-200 text-orange-950 px-4 py-3.5 rounded-xl flex items-center justify-between shadow-sm animate-fadeIn">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-orange-500 text-white rounded-lg"><QrCode size={18} /></div>
-                      <div>
-                        <span className="font-black text-base text-neutral-900 block leading-tight">Table {orderDetails.tableNumber}</span>
-                        <span className="text-[11px] text-orange-700 font-semibold">Automatically assigned via scanned QR code</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black bg-orange-200 text-orange-950 px-2.5 py-1 rounded-full uppercase tracking-wider">Locked</span>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <select 
-                      value={orderDetails.tableNumber}
-                      onChange={(e) => setOrderDetails({...orderDetails, tableNumber: e.target.value})}
-                      className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all font-bold text-lg appearance-none cursor-pointer"
-                    >
-                      <option value="" disabled>{t.tableSelectPrompt}</option>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
-                        <option key={num} value={num}>{num}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400">
-                      <ChevronDown size={20} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-5 border-t border-neutral-100">
                 <label className="flex items-center gap-2 font-bold text-neutral-900 mb-2"><MessageSquare size={18} className="text-orange-500"/> {t.extraInstructions}</label>
                 <textarea placeholder={t.instructionsPlaceholder} value={orderDetails.instructions} onChange={(e) => setOrderDetails({...orderDetails, instructions: e.target.value})} className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all text-sm font-medium"></textarea>
               </div>
             </div>
 
             <div className="mt-2 mb-8">
-              <button disabled={!orderDetails.tableNumber} onClick={sendToKitchen} className="w-full bg-[#EA580C] disabled:bg-neutral-300 text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] flex justify-center items-center gap-2 text-lg">
+              <button onClick={sendToKitchen} className="w-full bg-[#EA580C] hover:bg-[#EA580C]/90 text-white font-bold py-4 rounded-2xl shadow-lg shadow-orange-600/20 transition-all active:scale-[0.98] flex justify-center items-center gap-2 text-lg">
                 {hasOrdered ? t.updateOrder : t.sendToKitchen}
               </button>
-              {!orderDetails.tableNumber && <p className="text-center text-red-500 text-sm mt-3 font-bold animate-pulse">{t.tableRequired}</p>}
             </div>
           </>
         )}
