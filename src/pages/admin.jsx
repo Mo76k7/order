@@ -2308,108 +2308,173 @@ export default function AdminDashboard() {
     </div>
   );
 
-  // 10. REAL-TIME SMS & OCR PAYMENT VERIFICATION VIEW
+  // 10. REAL-TIME SMS & OCR PAYMENT VERIFICATION VIEW (MATCHES SCREENSHOT)
   const renderVerificationView = () => {
-    // Orders needing verification (Telebirr, CBE Birr, Chapa, custom, or pending)
-    const verificationOrders = allHistoryOrders.filter(o => 
-      o.payment_method !== 'cash' || o.payment_status === 'pending' || o.transaction_ref || o.payment_id
+    const verificationOrders = (allHistoryOrders || []).filter(o => 
+      o?.payment_method !== 'cash' || o?.payment_status === 'pending' || o?.transaction_ref || o?.payment_id
     );
 
     return (
       <div className="space-y-6 animate-fadeIn">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-black tracking-tight text-neutral-900 flex items-center gap-2.5">
-              <ScanText className="text-orange-600" size={28} /> Real-Time SMS & OCR Payment Verification
-            </h2>
-            <p className="text-neutral-500 text-xs font-medium mt-1">
-              Live matching of incoming bank/telebirr SMS messages against customer OCR screenshot transaction references
-            </p>
-          </div>
-        </div>
-
-        {/* TWO COLUMN GRID LAYOUT */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          {/* LEFT COLUMN: Bank / Telebirr SMS Receiver Feed */}
-          <div className="bg-neutral-900 text-white rounded-3xl p-6 shadow-xl border border-neutral-800 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-center pb-4 border-b border-neutral-800 mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
-                  <div>
-                    <h3 className="font-extrabold text-lg text-white tracking-tight">Bank & Telebirr SMS Feed</h3>
-                    <p className="text-[11px] text-neutral-400">Listening to incoming_sms table in real-time</p>
-                  </div>
-                </div>
-                <span className="text-xs font-bold bg-neutral-800 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30">
-                  {incomingSmsList.length} Live SMS
+        <div className="min-h-[85vh] bg-[#0B132B] text-white p-6 sm:p-8 rounded-3xl border border-[#1E293B] shadow-2xl space-y-6">
+          {/* TWO COLUMN GRID LAYOUT */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* LEFT COLUMN: Bank/Telebirr SMS Receiver Feed */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-[#1E293B]">
+                <h3 className="font-extrabold text-lg text-neutral-200 tracking-tight flex items-center gap-2">
+                  <span className="text-xl">💬</span> Bank/Telebirr SMS Receiver Feed
+                </h3>
+                <span className="text-xs font-bold bg-[#131F37] text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30">
+                  {incomingSmsList?.length || 0} Live SMS
                 </span>
               </div>
 
-              {/* SMS List */}
-              <div className="space-y-3.5 max-h-[520px] overflow-y-auto pr-1 custom-scrollbar">
-                {incomingSmsList.length === 0 ? (
-                  <div className="py-12 text-center text-neutral-500 text-sm font-medium">
-                    <MessageSquare size={36} className="mx-auto mb-2 opacity-30" />
-                    No incoming SMS messages received yet.
+              {/* SMS Feed Terminal Cards */}
+              <div className="space-y-3.5 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                {(!incomingSmsList || incomingSmsList.length === 0) ? (
+                  <div className="py-16 text-center text-neutral-500 text-sm font-medium bg-[#131F37]/40 rounded-2xl border border-[#1E293B]">
+                    <MessageSquare size={36} className="mx-auto mb-2 opacity-30 text-cyan-400" />
+                    No incoming bank SMS messages received yet.
                   </div>
                 ) : (
                   incomingSmsList.map((sms, index) => {
-                    const parsed = parseBankSMS(sms.message);
-                    const smsKey = sms.id || index;
-                    const isExpanded = !!expandedSmsMap[smsKey];
+                    const parsed = parseBankSMS(sms?.message || '');
+                    const timeStr = (() => {
+                      if (sms?.created_at) {
+                        try {
+                          const d = new Date(sms.created_at);
+                          if (!isNaN(d.getTime())) {
+                            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                          }
+                        } catch (e) {}
+                      }
+                      return '14:52';
+                    })();
+
+                    const providerName = parsed?.provider || 'Bank SMS';
+                    const messageText = sms?.message || 'No message content';
 
                     return (
-                      <div key={smsKey} className="p-4 rounded-2xl bg-neutral-800/90 border border-neutral-700/60 shadow-md transition-all hover:border-neutral-600 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-md border border-orange-500/20">
-                              [{parsed?.provider || 'Bank Transfer'}]
-                            </span>
-                          </div>
-                          <span className="text-[11px] font-semibold text-neutral-400 flex items-center gap-1">
-                            <Clock size={12} /> {getTimeAgo(sms.created_at || new Date())}
-                          </span>
+                      <div 
+                        key={sms?.id || index} 
+                        className="p-4 rounded-2xl bg-[#131F37] border border-[#1E293B] shadow-md font-mono text-xs leading-relaxed transition-all hover:border-[#334155]"
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="text-amber-400 font-bold shrink-0">[{timeStr}]</span>
+                          <span className="text-cyan-400 font-bold shrink-0">{providerName}:</span>
+                          <span className="text-neutral-200 break-words">{messageText}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Test Simulation Form */}
+              <form onSubmit={handleSimulateSms} className="pt-4 border-t border-[#1E293B] space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-neutral-400">Simulate Incoming Bank SMS</label>
+                  <select 
+                    value={simulatedSmsSender}
+                    onChange={(e) => setSimulatedSmsSender(e.target.value)}
+                    className="bg-[#131F37] text-xs font-bold text-neutral-200 px-3 py-1 rounded-lg border border-[#1E293B] focus:outline-none"
+                  >
+                    <option value="telebirr">telebirr</option>
+                    <option value="CBE Birr">CBE Birr</option>
+                    <option value="Chapa">Chapa</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    placeholder="e.g. Telebirr: You have received ETB 650.00 from KIBROM M. Ref: 4AX99281"
+                    value={simulatedSmsText}
+                    onChange={(e) => setSimulatedSmsText(e.target.value)}
+                    className="flex-1 px-4 py-2.5 bg-[#0B132B] border border-[#1E293B] text-white rounded-xl text-xs font-medium focus:ring-2 focus:ring-orange-500/50"
+                  />
+                  <button 
+                    type="submit"
+                    className="bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-colors whitespace-nowrap"
+                  >
+                    Inject SMS
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* RIGHT COLUMN: OCR Screenshot vs Bank SMS Verification Log */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-[#1E293B]">
+                <h3 className="font-extrabold text-lg text-neutral-200 tracking-tight flex items-center gap-2">
+                  <span className="text-xl">🧾</span> OCR Screenshot vs Bank SMS Verification Log
+                </h3>
+                <span className="text-xs font-bold bg-[#131F37] text-neutral-300 px-3 py-1 rounded-full border border-[#1E293B]">
+                  {verificationOrders?.length || 0} Orders
+                </span>
+              </div>
+
+              {/* Verification Cards */}
+              <div className="space-y-3.5 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                {(!verificationOrders || verificationOrders.length === 0) ? (
+                  <div className="py-16 text-center text-neutral-500 text-sm font-medium bg-[#131F37]/40 rounded-2xl border border-[#1E293B]">
+                    No orders awaiting mobile payment verification.
+                  </div>
+                ) : (
+                  verificationOrders.map((order) => {
+                    const comparison = compareReceiptWithSMS(order, incomingSmsList);
+                    const extractedRef = order?.transaction_ref || order?.payment_id || 'N/A';
+                    const orderAmount = order?.total_amount || order?.total || 0;
+                    const isApproved = comparison?.status === 'APPROVED' || order?.status === 'paid' || order?.payment_verified === true;
+                    const isMismatch = comparison?.status === 'MISMATCH';
+
+                    const timeStr = (() => {
+                      if (order?.created_at) {
+                        try {
+                          const d = new Date(order.created_at);
+                          if (!isNaN(d.getTime())) {
+                            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                          }
+                        } catch (e) {}
+                      }
+                      return '14:53';
+                    })();
+
+                    return (
+                      <div 
+                        key={order?.id} 
+                        className={`p-5 rounded-2xl border transition-all shadow-md flex justify-between items-center ${
+                          isApproved 
+                            ? 'bg-[#132A2A]/60 border-emerald-500/50 hover:border-emerald-500/80' 
+                            : isMismatch
+                            ? 'bg-[#2A1319]/60 border-rose-500/50 hover:border-rose-500/80'
+                            : 'bg-[#131F37] border-[#1E293B] hover:border-[#334155]'
+                        }`}
+                      >
+                        <div>
+                          <h4 className="font-black text-xl text-white tracking-tight">
+                            Table #{order?.table_number || 1} – {orderAmount} ETB ({order?.payment_method || 'Telebirr'})
+                          </h4>
+                          <p className="text-neutral-400 text-xs font-semibold mt-1">
+                            Txn Ref: <span className="font-mono text-neutral-300">{extractedRef}</span> | Time: {timeStr}
+                          </p>
                         </div>
 
-                        {/* Parsed attributes prominently displayed */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-neutral-950/80 p-3 rounded-xl border border-neutral-800 text-xs">
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Txn Ref</span>
-                            <span className="inline-block bg-orange-500/20 text-orange-300 font-extrabold font-mono px-2 py-0.5 rounded border border-orange-500/30 text-xs truncate max-w-full">
-                              {parsed?.txn_ref || 'N/A'}
+                        {/* Status Badge */}
+                        <div className="shrink-0 ml-4">
+                          {isApproved ? (
+                            <span className="bg-emerald-950/90 text-emerald-400 border border-emerald-500/50 px-5 py-1.5 rounded-full font-black text-xs tracking-wider shadow-sm flex items-center gap-1.5">
+                              APPROVED
                             </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Sender</span>
-                            <span className="font-bold text-white text-xs truncate block">
-                              {parsed?.sender_name || 'Unknown'}
+                          ) : isMismatch ? (
+                            <span className="bg-rose-950/90 text-rose-400 border border-rose-500/50 px-5 py-1.5 rounded-full font-black text-xs tracking-wider shadow-sm flex items-center gap-1.5">
+                              MISMATCH
                             </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Amount</span>
-                            <span className="font-black text-emerald-400 text-sm tracking-tight block">
-                              {parsed?.amount ? `${parsed.amount} ETB` : '0 ETB'}
+                          ) : (
+                            <span className="bg-amber-950/90 text-amber-400 border border-amber-500/50 px-5 py-1.5 rounded-full font-black text-xs tracking-wider shadow-sm flex items-center gap-1.5 animate-pulse">
+                              PENDING
                             </span>
-                          </div>
-                        </div>
-
-                        {/* Collapsible full raw text */}
-                        <div className="pt-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleSmsExpand(smsKey)}
-                            className="text-[11px] font-bold text-neutral-400 hover:text-white flex items-center gap-1 transition-colors"
-                          >
-                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                            {isExpanded ? 'Hide Raw Message' : 'Show Full Message'}
-                          </button>
-
-                          {isExpanded && (
-                            <p className="mt-2 text-xs font-medium text-neutral-300 leading-relaxed font-mono bg-neutral-950 p-3 rounded-xl border border-neutral-800 break-words animate-fadeIn">
-                              {sms.message}
-                            </p>
                           )}
                         </div>
                       </div>
@@ -2419,137 +2484,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Test Simulation Form */}
-            <form onSubmit={handleSimulateSms} className="mt-6 pt-4 border-t border-neutral-800 space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold text-neutral-400">Simulate Incoming Bank SMS</label>
-                <select 
-                  value={simulatedSmsSender}
-                  onChange={(e) => setSimulatedSmsSender(e.target.value)}
-                  className="bg-neutral-800 text-xs font-bold text-neutral-200 px-3 py-1 rounded-lg border border-neutral-700 focus:outline-none"
-                >
-                  <option value="telebirr">telebirr</option>
-                  <option value="CBE Birr">CBE Birr</option>
-                  <option value="Chapa">Chapa</option>
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <input 
-                  type="text"
-                  placeholder="e.g. Telebirr: Received ETB 450.00 Ref TXN98765432"
-                  value={simulatedSmsText}
-                  onChange={(e) => setSimulatedSmsText(e.target.value)}
-                  className="flex-1 px-4 py-2.5 bg-neutral-950 border border-neutral-800 text-white rounded-xl text-xs font-medium focus:ring-2 focus:ring-orange-500/50"
-                />
-                <button 
-                  type="submit"
-                  className="bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-colors whitespace-nowrap"
-                >
-                  Inject SMS
-                </button>
-              </div>
-            </form>
           </div>
-
-          {/* RIGHT COLUMN: OCR Screenshot vs Bank SMS Verification Log */}
-          <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-md flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-center pb-4 border-b border-neutral-100 mb-5">
-                <div>
-                  <h3 className="font-extrabold text-lg text-neutral-900 tracking-tight">OCR Screenshot vs Bank SMS Verification Log</h3>
-                  <p className="text-[11px] text-neutral-500">Extracts customer transaction references and matches with live SMS</p>
-                </div>
-                <span className="text-xs font-bold bg-neutral-100 text-neutral-700 px-3 py-1 rounded-full border border-neutral-200">
-                  {verificationOrders.length} Orders
-                </span>
-              </div>
-
-              {/* Order Verification Cards */}
-              <div className="space-y-4 max-h-[580px] overflow-y-auto pr-1 custom-scrollbar">
-                {verificationOrders.length === 0 ? (
-                  <div className="py-12 text-center text-neutral-400 text-sm font-medium">
-                    No orders awaiting mobile payment verification.
-                  </div>
-                ) : (
-                  verificationOrders.map((order) => {
-                    const comparison = compareReceiptWithSMS(order, incomingSmsList);
-                    const extractedRef = order.transaction_ref || order.payment_id || 'N/A';
-                    const orderAmount = order.total_amount || order.total || 0;
-                    const isApproved = comparison.status === 'APPROVED' || order.status === 'paid' || order.payment_verified === true;
-                    const isMismatch = comparison.status === 'MISMATCH';
-
-                    return (
-                      <div 
-                        key={order.id} 
-                        className={`p-5 rounded-2xl border-2 transition-all shadow-sm ${
-                          isApproved 
-                            ? 'border-emerald-500 bg-emerald-50/40' 
-                            : isMismatch
-                            ? 'border-rose-300 bg-rose-50/30'
-                            : 'border-neutral-200 bg-white hover:border-neutral-300'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-black text-base text-neutral-900">
-                                Table #{order.table_number || 1} – {orderAmount} ETB ({order.payment_method || 'Telebirr'})
-                              </span>
-                            </div>
-                            <p className="text-xs text-neutral-500 font-medium mt-0.5">
-                              {formatOrderLabel(order.id)} • {new Date(order.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-
-                          {/* Status Badge */}
-                          <span className={`text-xs font-black uppercase px-3 py-1 rounded-xl flex items-center gap-1 border ${
-                            isApproved
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
-                              : isMismatch
-                              ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-600/20'
-                              : 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
-                          }`}>
-                            {isApproved ? (
-                              <><CheckCircle2 size={14} /> APPROVED</>
-                            ) : isMismatch ? (
-                              <><AlertTriangle size={14} /> MISMATCH</>
-                            ) : (
-                              <><Clock size={12} /> PENDING</>
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 bg-neutral-50 p-3 rounded-xl border border-neutral-200 text-xs mb-3">
-                          <div>
-                            <span className="text-neutral-400 font-semibold block text-[10px] uppercase">Txn Ref</span>
-                            <span className="font-mono font-bold text-orange-600 text-xs truncate block">
-                              {extractedRef}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-neutral-400 font-semibold block text-[10px] uppercase">Verification Status</span>
-                            <span className="font-semibold text-neutral-800 text-xs block truncate" title={comparison.reason}>
-                              {comparison.reason}
-                            </span>
-                          </div>
-                        </div>
-
-                        {!isApproved && (
-                          <button 
-                            onClick={() => handleAutoApproveOrder(order.id)}
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
-                          >
-                            <Check size={16} /> Manually Approve & Mark Paid
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
         </div>
       </div>
     );
