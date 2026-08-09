@@ -5,7 +5,7 @@ import {
   IceCream, Info, ChevronLeft, ChevronDown, Users, MessageSquare, MapPin, 
   Smartphone, Landmark, CheckCircle2, Search, X, Globe, Clock, Check,
   Bell, BellRing, Receipt, PlusCircle, Upload, Loader2, AlertCircle, ScanText,
-  Banknote, Copy, CreditCard
+  Banknote, Copy, CreditCard, Wallet
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -223,9 +223,12 @@ export default function App() {
     chapa_enabled: true,
     cash_enabled: true,
     telebirr_number: '0911234567',
+    telebirr_account_name: 'ZOM Restaurant',
     cbe_account_number: '1000123456789',
     cbe_account_name: 'ZOM Restaurant',
-    chapa_merchant_key: 'CHAPA-SECRET-KEY'
+    chapa_merchant_key: 'CHAPA-SECRET-KEY',
+    chapa_account_name: 'ZOM Restaurant',
+    custom_payment_methods: []
   });
 
   // Verification State
@@ -260,9 +263,12 @@ export default function App() {
             chapa_enabled: data.chapa_enabled ?? true,
             cash_enabled: data.cash_enabled ?? true,
             telebirr_number: data.telebirr_number || '0911234567',
+            telebirr_account_name: data.telebirr_account_name || 'ZOM Restaurant',
             cbe_account_number: data.cbe_account_number || '1000123456789',
             cbe_account_name: data.cbe_account_name || 'ZOM Restaurant',
-            chapa_merchant_key: data.chapa_merchant_key || 'CHAPA-SECRET-KEY'
+            chapa_merchant_key: data.chapa_merchant_key || 'CHAPA-SECRET-KEY',
+            chapa_account_name: data.chapa_account_name || 'ZOM Restaurant',
+            custom_payment_methods: Array.isArray(data.custom_payment_methods) ? data.custom_payment_methods : []
           });
           localStorage.setItem('restaurant_settings', JSON.stringify(data));
         } else {
@@ -293,9 +299,12 @@ export default function App() {
               chapa_enabled: payload.new.chapa_enabled ?? true,
               cash_enabled: payload.new.cash_enabled ?? true,
               telebirr_number: payload.new.telebirr_number || '0911234567',
+              telebirr_account_name: payload.new.telebirr_account_name || 'ZOM Restaurant',
               cbe_account_number: payload.new.cbe_account_number || '1000123456789',
               cbe_account_name: payload.new.cbe_account_name || 'ZOM Restaurant',
-              chapa_merchant_key: payload.new.chapa_merchant_key || 'CHAPA-SECRET-KEY'
+              chapa_merchant_key: payload.new.chapa_merchant_key || 'CHAPA-SECRET-KEY',
+              chapa_account_name: payload.new.chapa_account_name || 'ZOM Restaurant',
+              custom_payment_methods: Array.isArray(payload.new.custom_payment_methods) ? payload.new.custom_payment_methods : []
             });
           }
         }
@@ -920,7 +929,7 @@ const formatOrderLabel = (id) => {
                   </div>
                   {orderDetails.paymentMethod === 'telebirr' && (
                     <div className="mt-4 pt-3 border-t border-cyan-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
-                      <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">{paymentSettings.cbe_account_name || 'ZOM Tech'}</span></p>
+                      <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">{paymentSettings.telebirr_account_name || 'ZOM Restaurant'}</span></p>
                       <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-cyan-200 shadow-sm">
                         <span className="font-black text-lg tracking-wider text-cyan-700">{paymentSettings.telebirr_number}</span>
                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(paymentSettings.telebirr_number); }} className="text-cyan-700 hover:bg-cyan-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
@@ -941,7 +950,7 @@ const formatOrderLabel = (id) => {
                   </div>
                   {orderDetails.paymentMethod === 'cbe' && (
                     <div className="mt-4 pt-3 border-t border-purple-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
-                      <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">{paymentSettings.cbe_account_name}</span></p>
+                      <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">{paymentSettings.cbe_account_name || 'ZOM Restaurant'}</span></p>
                       <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-purple-200 shadow-sm">
                         <span className="font-black text-lg tracking-wider text-purple-700">{paymentSettings.cbe_account_number}</span>
                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(paymentSettings.cbe_account_number); }} className="text-purple-700 hover:bg-purple-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
@@ -962,7 +971,7 @@ const formatOrderLabel = (id) => {
                   </div>
                   {orderDetails.paymentMethod === 'chapa' && (
                     <div className="mt-4 pt-3 border-t border-emerald-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
-                      <p className="text-xs text-neutral-600 mb-1">Merchant Account Key: <span className="font-bold text-neutral-900">{paymentSettings.chapa_merchant_key || 'Chapa'}</span></p>
+                      <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">{paymentSettings.chapa_account_name || 'ZOM Restaurant'}</span></p>
                       <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-emerald-200 shadow-sm">
                         <span className="font-black text-xs tracking-wider text-emerald-700 truncate max-w-[220px]">{paymentSettings.chapa_merchant_key}</span>
                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(paymentSettings.chapa_merchant_key); }} className="text-emerald-700 hover:bg-emerald-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
@@ -971,6 +980,27 @@ const formatOrderLabel = (id) => {
                   )}
                 </label>
               )}
+
+              {/* Custom Payment Methods */}
+              {paymentSettings.custom_payment_methods && paymentSettings.custom_payment_methods.filter(m => m.enabled !== false).map(method => (
+                <label key={method.id} className={`relative flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${orderDetails.paymentMethod === method.id ? 'border-blue-600 bg-blue-50 shadow-md' : 'border-neutral-200 bg-white hover:border-blue-200'}`}>
+                  <div className="flex items-center gap-4">
+                    <input type="radio" name="payment" value={method.id} className="sr-only" onChange={(e) => setOrderDetails({...orderDetails, paymentMethod: e.target.value})} />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${orderDetails.paymentMethod === method.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-blue-100 text-blue-600'}`}><Wallet size={24} /></div>
+                    <div className="flex-grow"><h3 className="font-black text-neutral-900 text-lg tracking-tight">{method.name}</h3></div>
+                    {orderDetails.paymentMethod === method.id && <CheckCircle2 className="text-blue-600 animate-scaleIn" size={24} />}
+                  </div>
+                  {orderDetails.paymentMethod === method.id && (
+                    <div className="mt-4 pt-3 border-t border-blue-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
+                      <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">{method.account_name}</span></p>
+                      <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-blue-200 shadow-sm">
+                        <span className="font-black text-lg tracking-wider text-blue-700">{method.account_number}</span>
+                        <button onClick={(e) => { e.stopPropagation(); copyToClipboard(method.account_number); }} className="text-blue-700 hover:bg-blue-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
+                      </div>
+                    </div>
+                  )}
+                </label>
+              ))}
 
               {/* Cash Payment */}
               {paymentSettings.cash_enabled && (

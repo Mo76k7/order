@@ -8,7 +8,7 @@ import {
   Megaphone, Tag, Download, MessageSquare, CheckCircle2, ChevronRight,
   Menu as MenuIcon, X, UtensilsCrossed, Smartphone, Check, QrCode, RefreshCw,
   Pencil, Trash2, AlertTriangle, Eye, EyeOff, FolderEdit, FolderMinus, List,
-  CreditCard, Banknote, Landmark
+  CreditCard, Banknote, Landmark, Wallet
 } from 'lucide-react';
 
 // --- TRANSLATIONS ---
@@ -138,6 +138,8 @@ export default function AdminDashboard() {
   const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
   const [editingMenuItem, setEditingMenuItem] = useState(null); // Item object being edited
   const [editingCategory, setEditingCategory] = useState(null); // Category string being edited
+  const [isCustomPaymentModalOpen, setIsCustomPaymentModalOpen] = useState(false);
+  const [editingCustomMethod, setEditingCustomMethod] = useState(null); // Custom payment item being edited
 
   // Form States
   const [newMenuItem, setNewMenuItem] = useState({ 
@@ -176,9 +178,21 @@ export default function AdminDashboard() {
     chapa_enabled: true,
     cash_enabled: true,
     telebirr_number: '0911234567',
+    telebirr_account_name: 'ZOM Restaurant',
     cbe_account_number: '1000123456789',
     cbe_account_name: 'ZOM Restaurant',
-    chapa_merchant_key: 'CHAPA-SECRET-KEY'
+    chapa_merchant_key: 'CHAPA-SECRET-KEY',
+    chapa_account_name: 'ZOM Restaurant',
+    custom_payment_methods: []
+  });
+
+  // Custom Payment Method Form
+  const [customMethodForm, setCustomMethodForm] = useState({
+    id: '',
+    name: '',
+    account_number: '',
+    account_name: '',
+    enabled: true
   });
 
   const t = TRANSLATIONS[lang];
@@ -218,9 +232,12 @@ export default function AdminDashboard() {
           chapa_enabled: settingsRes.data.chapa_enabled ?? true,
           cash_enabled: settingsRes.data.cash_enabled ?? true,
           telebirr_number: settingsRes.data.telebirr_number || '0911234567',
+          telebirr_account_name: settingsRes.data.telebirr_account_name || 'ZOM Restaurant',
           cbe_account_number: settingsRes.data.cbe_account_number || '1000123456789',
           cbe_account_name: settingsRes.data.cbe_account_name || 'ZOM Restaurant',
-          chapa_merchant_key: settingsRes.data.chapa_merchant_key || 'CHAPA-SECRET-KEY'
+          chapa_merchant_key: settingsRes.data.chapa_merchant_key || 'CHAPA-SECRET-KEY',
+          chapa_account_name: settingsRes.data.chapa_account_name || 'ZOM Restaurant',
+          custom_payment_methods: Array.isArray(settingsRes.data.custom_payment_methods) ? settingsRes.data.custom_payment_methods : []
         });
         localStorage.setItem('restaurant_settings', JSON.stringify(settingsRes.data));
       } else {
@@ -661,6 +678,80 @@ export default function AdminDashboard() {
     }
   };
 
+  // ================= CUSTOM PAYMENT METHOD ACTIONS =================
+
+  const handleOpenAddCustomPayment = () => {
+    setEditingCustomMethod(null);
+    setCustomMethodForm({
+      id: '',
+      name: '',
+      account_number: '',
+      account_name: '',
+      enabled: true
+    });
+    setIsCustomPaymentModalOpen(true);
+  };
+
+  const handleOpenEditCustomPayment = (method) => {
+    setEditingCustomMethod(method);
+    setCustomMethodForm({
+      id: method.id,
+      name: method.name || '',
+      account_number: method.account_number || '',
+      account_name: method.account_name || '',
+      enabled: method.enabled ?? true
+    });
+    setIsCustomPaymentModalOpen(true);
+  };
+
+  const handleSaveCustomPaymentMethod = (e) => {
+    e.preventDefault();
+    if (!customMethodForm.name.trim() || !customMethodForm.account_number.trim()) {
+      alert("Please provide both Gateway Name and Account/Phone Number.");
+      return;
+    }
+
+    if (editingCustomMethod) {
+      // Edit existing
+      setPaymentSettings(prev => ({
+        ...prev,
+        custom_payment_methods: prev.custom_payment_methods.map(m => 
+          m.id === editingCustomMethod.id ? { ...customMethodForm, id: editingCustomMethod.id } : m
+        )
+      }));
+    } else {
+      // Add new
+      const newMethod = {
+        id: `custom_${Date.now()}`,
+        name: customMethodForm.name.trim(),
+        account_number: customMethodForm.account_number.trim(),
+        account_name: customMethodForm.account_name.trim(),
+        enabled: customMethodForm.enabled
+      };
+      setPaymentSettings(prev => ({
+        ...prev,
+        custom_payment_methods: [...(prev.custom_payment_methods || []), newMethod]
+      }));
+    }
+
+    setIsCustomPaymentModalOpen(false);
+  };
+
+  const handleDeleteCustomPaymentMethod = (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete custom payment method "${name}"?`)) return;
+    setPaymentSettings(prev => ({
+      ...prev,
+      custom_payment_methods: prev.custom_payment_methods.filter(m => m.id !== id)
+    }));
+  };
+
+  const handleToggleCustomPaymentMethod = (id, enabled) => {
+    setPaymentSettings(prev => ({
+      ...prev,
+      custom_payment_methods: prev.custom_payment_methods.map(m => m.id === id ? { ...m, enabled } : m)
+    }));
+  };
+
   // --- SAVE RESTAURANT & PAYMENT SETTINGS TO SUPABASE & LOCALSTORAGE ---
   const handleSaveSettings = async () => {
     const payload = {
@@ -675,9 +766,12 @@ export default function AdminDashboard() {
       chapa_enabled: paymentSettings.chapa_enabled,
       cash_enabled: paymentSettings.cash_enabled,
       telebirr_number: paymentSettings.telebirr_number,
+      telebirr_account_name: paymentSettings.telebirr_account_name,
       cbe_account_number: paymentSettings.cbe_account_number,
       cbe_account_name: paymentSettings.cbe_account_name,
       chapa_merchant_key: paymentSettings.chapa_merchant_key,
+      chapa_account_name: paymentSettings.chapa_account_name,
+      custom_payment_methods: paymentSettings.custom_payment_methods || [],
       updated_at: new Date().toISOString()
     };
 
@@ -688,7 +782,7 @@ export default function AdminDashboard() {
       if (error) {
         alert("Settings saved locally! (Supabase status: " + error.message + ")");
       } else {
-        alert("Operational and Payment Settings successfully saved to database!");
+        alert("All operational and payment settings (including custom gateways and holder names) successfully saved to database!");
       }
     } catch (err) {
       alert("Saved to local storage.");
@@ -1498,7 +1592,7 @@ export default function AdminDashboard() {
     <div className="space-y-6 max-w-4xl animate-fadeIn">
       <div>
         <h2 className="text-2xl font-black tracking-tight text-neutral-900">Restaurant Settings & Configuration</h2>
-        <p className="text-neutral-500 text-xs font-medium mt-1">Manage operational details, payment method toggles, and receiver account credentials</p>
+        <p className="text-neutral-500 text-xs font-medium mt-1">Manage operational details, payment method toggles, custom gateways, and paired account credentials</p>
       </div>
 
       {/* Operational Settings */}
@@ -1562,16 +1656,24 @@ export default function AdminDashboard() {
 
       {/* Payment Settings & Configuration Card */}
       <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-md space-y-6">
-        <div className="border-b border-neutral-100 pb-4">
-          <h3 className="font-bold text-lg text-neutral-900 flex items-center gap-2">
-            <CreditCard className="text-orange-500" size={20} /> Payment Settings & Gateways
-          </h3>
-          <p className="text-xs text-neutral-500 mt-0.5">Enable or disable payment methods and configure customer receiving account numbers.</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-neutral-100 pb-4">
+          <div>
+            <h3 className="font-bold text-lg text-neutral-900 flex items-center gap-2">
+              <CreditCard className="text-orange-500" size={20} /> Payment Methods & Custom Gateways
+            </h3>
+            <p className="text-xs text-neutral-500 mt-0.5">Manage default and custom payment methods with paired Account Holder Names</p>
+          </div>
+          <button 
+            onClick={handleOpenAddCustomPayment}
+            className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md transition-all whitespace-nowrap"
+          >
+            <Plus size={16} /> Add Custom Payment Method
+          </button>
         </div>
 
-        {/* SUBSECTION A: PAYMENT METHODS TOGGLE */}
+        {/* SUBSECTION A: PAYMENT METHODS TOGGLE & CUSTOM GATEWAYS */}
         <div>
-          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">A. Payment Methods Toggle (Enable/Disable)</h4>
+          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">A. Payment Methods Toggle & Custom Gateways</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             {/* Telebirr Toggle */}
@@ -1662,57 +1764,133 @@ export default function AdminDashboard() {
               </label>
             </div>
 
+            {/* CUSTOM PAYMENT METHODS LIST */}
+            {paymentSettings.custom_payment_methods && paymentSettings.custom_payment_methods.map(method => (
+              <div key={method.id} className={`p-4 rounded-xl border-2 transition-all flex items-center justify-between ${method.enabled ? 'border-blue-500 bg-blue-50/50' : 'border-neutral-200 bg-neutral-50'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-lg ${method.enabled ? 'bg-blue-600 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                    <Wallet size={20} />
+                  </div>
+                  <div>
+                    <span className="font-bold text-sm text-neutral-900 block">{method.name}</span>
+                    <span className="text-[11px] text-neutral-500 font-medium">{method.account_number} • {method.account_name}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => handleOpenEditCustomPayment(method)}
+                    className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                    title="Edit custom gateway"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteCustomPaymentMethod(method.id, method.name)}
+                    className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Delete custom gateway"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={method.enabled}
+                      onChange={(e) => handleToggleCustomPaymentMethod(method.id, e.target.checked)}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            ))}
+
           </div>
         </div>
 
-        {/* SUBSECTION B: PAYMENT ACCOUNT DETAILS FORM */}
+        {/* SUBSECTION B: PAYMENT ACCOUNT DETAILS FORM WITH PAIRED HOLDER NAMES */}
         <div className="pt-4 border-t border-neutral-100 space-y-4">
-          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">B. Payment Receiver Account Credentials</h4>
+          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">B. Payment Receiver Credentials (Paired Number & Account Holder Name)</h4>
           
-          <div>
-            <label className="block text-xs font-bold text-neutral-700 mb-1">Telebirr Merchant / Phone Number</label>
-            <input 
-              type="text" 
-              placeholder="e.g. 0911234567"
-              value={paymentSettings.telebirr_number}
-              onChange={(e) => setPaymentSettings({ ...paymentSettings, telebirr_number: e.target.value })}
-              className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1">CBE Birr Account Number</label>
-              <input 
-                type="text" 
-                placeholder="e.g. 1000123456789"
-                value={paymentSettings.cbe_account_number}
-                onChange={(e) => setPaymentSettings({ ...paymentSettings, cbe_account_number: e.target.value })}
-                className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1">CBE Account Holder Name</label>
-              <input 
-                type="text" 
-                placeholder="e.g. ZOM Restaurant & Bar"
-                value={paymentSettings.cbe_account_name}
-                onChange={(e) => setPaymentSettings({ ...paymentSettings, cbe_account_name: e.target.value })}
-                className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
-              />
+          {/* Telebirr Credentials */}
+          <div className="p-4 rounded-2xl bg-cyan-50/40 border border-cyan-100 space-y-3">
+            <h5 className="font-bold text-xs text-cyan-900 flex items-center gap-1.5"><Smartphone size={14}/> Telebirr Credentials</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">Telebirr Merchant / Phone Number</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. 0911234567"
+                  value={paymentSettings.telebirr_number}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, telebirr_number: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">Telebirr Account Holder Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. ZOM Restaurant & Bar"
+                  value={paymentSettings.telebirr_account_name}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, telebirr_account_name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                />
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-neutral-700 mb-1">Chapa Public Key / Merchant Account</label>
-            <input 
-              type="text" 
-              placeholder="e.g. CHAPUBK_TEST-xxxxxxxxxxxx"
-              value={paymentSettings.chapa_merchant_key}
-              onChange={(e) => setPaymentSettings({ ...paymentSettings, chapa_merchant_key: e.target.value })}
-              className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-            />
+          {/* CBE Birr Credentials */}
+          <div className="p-4 rounded-2xl bg-purple-50/40 border border-purple-100 space-y-3">
+            <h5 className="font-bold text-xs text-purple-900 flex items-center gap-1.5"><Landmark size={14}/> CBE Birr Credentials</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">CBE Birr Account Number</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. 1000123456789"
+                  value={paymentSettings.cbe_account_number}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, cbe_account_number: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">CBE Account Holder Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. ZOM Restaurant & Bar"
+                  value={paymentSettings.cbe_account_name}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, cbe_account_name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Chapa Credentials */}
+          <div className="p-4 rounded-2xl bg-emerald-50/40 border border-emerald-100 space-y-3">
+            <h5 className="font-bold text-xs text-emerald-900 flex items-center gap-1.5"><CreditCard size={14}/> Chapa Credentials</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">Chapa Public Key / Merchant Account</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. CHAPUBK_TEST-xxxxxxxxxxxx"
+                  value={paymentSettings.chapa_merchant_key}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, chapa_merchant_key: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">Chapa Account Holder Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. ZOM Restaurant & Bar"
+                  value={paymentSettings.chapa_account_name}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, chapa_account_name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1722,7 +1900,7 @@ export default function AdminDashboard() {
           onClick={handleSaveSettings} 
           className="bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm px-8 py-3.5 rounded-xl shadow-lg shadow-orange-600/20 transition-all flex items-center gap-2 active:scale-95"
         >
-          <Check size={18} /> Save Restaurant & Payment Settings
+          <Check size={18} /> Save All Restaurant & Payment Settings
         </button>
       </div>
     </div>
@@ -2071,6 +2249,73 @@ export default function AdminDashboard() {
               <div className="pt-2 flex gap-3">
                 <button type="button" onClick={() => setEditingCategory(null)} className="flex-1 bg-neutral-100 font-bold text-neutral-700 py-3 rounded-xl">Cancel</button>
                 <button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-500 font-bold text-white py-3 rounded-xl shadow-lg shadow-purple-600/20">Save Name</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- ADD / EDIT CUSTOM PAYMENT METHOD MODAL --- */}
+      {isCustomPaymentModalOpen && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl animate-fadeIn relative">
+            <button onClick={() => setIsCustomPaymentModalOpen(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600"><X size={20}/></button>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><Wallet size={18}/></div>
+              <h3 className="text-xl font-black text-neutral-900">{editingCustomMethod ? 'Edit Custom Gateway' : 'Add Custom Payment Gateway'}</h3>
+            </div>
+            
+            <form onSubmit={handleSaveCustomPaymentMethod} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">Gateway Name *</label>
+                <input 
+                  type="text" required
+                  placeholder="e.g. BOA Digital, Awash Birr, E-Birr"
+                  value={customMethodForm.name}
+                  onChange={(e) => setCustomMethodForm({ ...customMethodForm, name: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">Account / Phone / Merchant Number *</label>
+                <input 
+                  type="text" required
+                  placeholder="e.g. 013201234567"
+                  value={customMethodForm.account_number}
+                  onChange={(e) => setCustomMethodForm({ ...customMethodForm, account_number: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">Account Holder Name *</label>
+                <input 
+                  type="text" required
+                  placeholder="e.g. ZOM Restaurant & Bar"
+                  value={customMethodForm.account_name}
+                  onChange={(e) => setCustomMethodForm({ ...customMethodForm, account_name: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">Status</label>
+                <select
+                  value={customMethodForm.enabled ? 'true' : 'false'}
+                  onChange={(e) => setCustomMethodForm({ ...customMethodForm, enabled: e.target.value === 'true' })}
+                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+                >
+                  <option value="true">Enabled (Active on Checkout)</option>
+                  <option value="false">Disabled</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button type="button" onClick={() => setIsCustomPaymentModalOpen(false)} className="flex-1 bg-neutral-100 font-bold text-neutral-700 py-3 rounded-xl">Cancel</button>
+                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 font-bold text-white py-3 rounded-xl shadow-lg shadow-blue-600/20">
+                  {editingCustomMethod ? 'Update Gateway' : 'Create Gateway'}
+                </button>
               </div>
             </form>
           </div>
