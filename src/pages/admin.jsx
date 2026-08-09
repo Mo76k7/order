@@ -2191,77 +2191,107 @@ export default function AdminDashboard() {
 
       {/* --- ADD MENU ITEM MODAL --- */}
       {isAddMenuModalOpen && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl animate-fadeIn relative">
-            <button onClick={() => setIsAddMenuModalOpen(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600"><X size={20}/></button>
-            <h3 className="text-xl font-black text-neutral-900 mb-4">{t.addMenuItem}</h3>
-            <form onSubmit={handleAddMenuItem} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Item Title / Name *</label>
-                <input 
-                  type="text" required
-                  placeholder="e.g. Pepperoni Pizza"
-                  value={newMenuItem.name}
-                  onChange={(e) => setNewMenuItem({ ...newMenuItem, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Description</label>
-                <textarea 
-                  rows="2"
-                  placeholder="Short description of ingredients..."
-                  value={newMenuItem.description}
-                  onChange={(e) => setNewMenuItem({ ...newMenuItem, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-neutral-200 rounded-xl text-sm font-medium resize-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsAddMenuModalOpen(false); }}
+        >
+          <div className="max-h-[90vh] flex flex-col w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Sticky Header */}
+            <div className="p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+              <h3 className="text-lg font-black text-neutral-900">{t.addMenuItem}</h3>
+              <button 
+                type="button"
+                onClick={() => setIsAddMenuModalOpen(false)} 
+                className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg hover:bg-neutral-100 transition-colors"
+              >
+                <X size={20}/>
+              </button>
+            </div>
+
+            {/* Form Container */}
+            <form onSubmit={handleAddMenuItem} className="flex flex-col flex-1 overflow-hidden">
+              {/* Scrollable Body */}
+              <div className="overflow-y-auto p-6 space-y-4 flex-1">
                 <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">Category *</label>
-                  <select 
-                    value={newMenuItem.category}
-                    onChange={(e) => setNewMenuItem({ ...newMenuItem, category: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
-                  >
-                    {categoriesList.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Item Title / Name *</label>
+                  <input 
+                    type="text" required
+                    placeholder="e.g. Pepperoni Pizza"
+                    value={newMenuItem.name}
+                    onChange={(e) => setNewMenuItem({ ...newMenuItem, name: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">Price (Br) *</label>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Description</label>
+                  <textarea 
+                    rows="2"
+                    placeholder="Short description of ingredients..."
+                    value={newMenuItem.description}
+                    onChange={(e) => setNewMenuItem({ ...newMenuItem, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-200 rounded-xl text-sm font-medium resize-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">Category *</label>
+                    <select 
+                      value={newMenuItem.category}
+                      onChange={(e) => setNewMenuItem({ ...newMenuItem, category: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+                    >
+                      {categoriesList.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">Price (Br) *</label>
+                    <input 
+                      type="number" step="0.01" required
+                      placeholder="e.g. 450"
+                      value={newMenuItem.price}
+                      onChange={(e) => setNewMenuItem({ ...newMenuItem, price: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Image URL</label>
                   <input 
-                    type="number" step="0.01" required
-                    placeholder="e.g. 450"
-                    value={newMenuItem.price}
-                    onChange={(e) => setNewMenuItem({ ...newMenuItem, price: e.target.value })}
+                    type="url"
+                    placeholder="https://images.unsplash.com/..."
+                    value={newMenuItem.image_url}
+                    onChange={(e) => setNewMenuItem({ ...newMenuItem, image_url: e.target.value })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Availability Status</label>
+                  <select
+                    value={newMenuItem.is_available ? 'true' : 'false'}
+                    onChange={(e) => setNewMenuItem({ ...newMenuItem, is_available: e.target.value === 'true' })}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+                  >
+                    <option value="true">Available</option>
+                    <option value="false">Out of Stock</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Image URL</label>
-                <input 
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={newMenuItem.image_url}
-                  onChange={(e) => setNewMenuItem({ ...newMenuItem, image_url: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Availability Status</label>
-                <select
-                  value={newMenuItem.is_available ? 'true' : 'false'}
-                  onChange={(e) => setNewMenuItem({ ...newMenuItem, is_available: e.target.value === 'true' })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+
+              {/* Sticky Footer */}
+              <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 sticky bottom-0 z-10">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddMenuModalOpen(false)} 
+                  className="px-5 py-2.5 bg-neutral-200 hover:bg-neutral-300 font-bold text-neutral-700 text-xs rounded-xl transition-colors"
                 >
-                  <option value="true">Available</option>
-                  <option value="false">Out of Stock</option>
-                </select>
-              </div>
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => setIsAddMenuModalOpen(false)} className="flex-1 bg-neutral-100 font-bold text-neutral-700 py-3 rounded-xl">Cancel</button>
-                <button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-500 font-bold text-white py-3 rounded-xl shadow-lg shadow-orange-600/20">Add Item</button>
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 font-bold text-white text-xs rounded-xl shadow-md shadow-orange-600/20 transition-all"
+                >
+                  Add Item
+                </button>
               </div>
             </form>
           </div>
@@ -2270,77 +2300,106 @@ export default function AdminDashboard() {
 
       {/* --- EDIT MENU ITEM MODAL --- */}
       {editingMenuItem && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl animate-fadeIn relative">
-            <button onClick={() => setEditingMenuItem(null)} className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600"><X size={20}/></button>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><Pencil size={18}/></div>
-              <h3 className="text-xl font-black text-neutral-900">Edit Menu Item</h3>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setEditingMenuItem(null); }}
+        >
+          <div className="max-h-[90vh] flex flex-col w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Sticky Header */}
+            <div className="p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Pencil size={16}/></div>
+                <h3 className="text-lg font-black text-neutral-900">Edit Menu Item</h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setEditingMenuItem(null)} 
+                className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg hover:bg-neutral-100 transition-colors"
+              >
+                <X size={20}/>
+              </button>
             </div>
-            
-            <form onSubmit={handleUpdateMenuItem} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Item Title / Name *</label>
-                <input 
-                  type="text" required
-                  value={editMenuItemForm.name}
-                  onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Description</label>
-                <textarea 
-                  rows="2"
-                  value={editMenuItemForm.description}
-                  onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-neutral-200 rounded-xl text-sm font-medium resize-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+
+            {/* Form Container */}
+            <form onSubmit={handleUpdateMenuItem} className="flex flex-col flex-1 overflow-hidden">
+              {/* Scrollable Body */}
+              <div className="overflow-y-auto p-6 space-y-4 flex-1">
                 <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">Category *</label>
-                  <select 
-                    value={editMenuItemForm.category}
-                    onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, category: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
-                  >
-                    {categoriesList.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Item Title / Name *</label>
+                  <input 
+                    type="text" required
+                    value={editMenuItemForm.name}
+                    onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, name: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">Price (Br) *</label>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Description</label>
+                  <textarea 
+                    rows="2"
+                    value={editMenuItemForm.description}
+                    onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-200 rounded-xl text-sm font-medium resize-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">Category *</label>
+                    <select 
+                      value={editMenuItemForm.category}
+                      onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, category: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+                    >
+                      {categoriesList.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">Price (Br) *</label>
+                    <input 
+                      type="number" step="0.01" required
+                      value={editMenuItemForm.price}
+                      onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, price: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Image URL</label>
                   <input 
-                    type="number" step="0.01" required
-                    value={editMenuItemForm.price}
-                    onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, price: e.target.value })}
+                    type="url"
+                    value={editMenuItemForm.image_url}
+                    onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, image_url: e.target.value })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Availability Status</label>
+                  <select
+                    value={editMenuItemForm.is_available ? 'true' : 'false'}
+                    onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, is_available: e.target.value === 'true' })}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+                  >
+                    <option value="true">Available</option>
+                    <option value="false">Out of Stock</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Image URL</label>
-                <input 
-                  type="url"
-                  value={editMenuItemForm.image_url}
-                  onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, image_url: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Availability Status</label>
-                <select
-                  value={editMenuItemForm.is_available ? 'true' : 'false'}
-                  onChange={(e) => setEditMenuItemForm({ ...editMenuItemForm, is_available: e.target.value === 'true' })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+
+              {/* Sticky Footer */}
+              <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 sticky bottom-0 z-10">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingMenuItem(null)} 
+                  className="px-5 py-2.5 bg-neutral-200 hover:bg-neutral-300 font-bold text-neutral-700 text-xs rounded-xl transition-colors"
                 >
-                  <option value="true">Available</option>
-                  <option value="false">Out of Stock</option>
-                </select>
-              </div>
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => setEditingMenuItem(null)} className="flex-1 bg-neutral-100 font-bold text-neutral-700 py-3 rounded-xl">Cancel</button>
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 font-bold text-white py-3 rounded-xl shadow-lg shadow-blue-600/20">Save Changes</button>
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 font-bold text-white text-xs rounded-xl shadow-md shadow-blue-600/20 transition-all"
+                >
+                  Save Changes
+                </button>
               </div>
             </form>
           </div>
@@ -2349,24 +2408,54 @@ export default function AdminDashboard() {
 
       {/* --- ADD CATEGORY MODAL --- */}
       {isAddCategoryModalOpen && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-fadeIn relative">
-            <button onClick={() => setIsAddCategoryModalOpen(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600"><X size={20}/></button>
-            <h3 className="text-xl font-black text-neutral-900 mb-4">{t.addCategory}</h3>
-            <form onSubmit={handleAddCategory} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Category Name</label>
-                <input 
-                  type="text" required
-                  placeholder="e.g. Beverages"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
-                />
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsAddCategoryModalOpen(false); }}
+        >
+          <div className="max-h-[90vh] flex flex-col w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Sticky Header */}
+            <div className="p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+              <h3 className="text-lg font-black text-neutral-900">{t.addCategory}</h3>
+              <button 
+                type="button"
+                onClick={() => setIsAddCategoryModalOpen(false)} 
+                className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg hover:bg-neutral-100 transition-colors"
+              >
+                <X size={20}/>
+              </button>
+            </div>
+
+            {/* Form Container */}
+            <form onSubmit={handleAddCategory} className="flex flex-col flex-1 overflow-hidden">
+              {/* Scrollable Body */}
+              <div className="overflow-y-auto p-6 space-y-4 flex-1">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Category Name</label>
+                  <input 
+                    type="text" required
+                    placeholder="e.g. Beverages"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  />
+                </div>
               </div>
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => setIsAddCategoryModalOpen(false)} className="flex-1 bg-neutral-100 font-bold text-neutral-700 py-3 rounded-xl">Cancel</button>
-                <button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-500 font-bold text-white py-3 rounded-xl shadow-lg shadow-purple-600/20">Add Category</button>
+
+              {/* Sticky Footer */}
+              <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 sticky bottom-0 z-10">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddCategoryModalOpen(false)} 
+                  className="px-5 py-2.5 bg-neutral-200 hover:bg-neutral-300 font-bold text-neutral-700 text-xs rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 font-bold text-white text-xs rounded-xl shadow-md shadow-purple-600/20 transition-all"
+                >
+                  Add Category
+                </button>
               </div>
             </form>
           </div>
@@ -2375,29 +2464,57 @@ export default function AdminDashboard() {
 
       {/* --- EDIT CATEGORY MODAL --- */}
       {editingCategory && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-fadeIn relative">
-            <button onClick={() => setEditingCategory(null)} className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600"><X size={20}/></button>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-purple-50 text-purple-600 rounded-xl"><FolderEdit size={18}/></div>
-              <h3 className="text-xl font-black text-neutral-900">Edit Category</h3>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setEditingCategory(null); }}
+        >
+          <div className="max-h-[90vh] flex flex-col w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Sticky Header */}
+            <div className="p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-purple-50 text-purple-600 rounded-lg"><FolderEdit size={16}/></div>
+                <h3 className="text-lg font-black text-neutral-900">Edit Category</h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setEditingCategory(null)} 
+                className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg hover:bg-neutral-100 transition-colors"
+              >
+                <X size={20}/>
+              </button>
             </div>
-            
-            <form onSubmit={handleUpdateCategoryName} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Category Name</label>
-                <input 
-                  type="text" required
-                  value={editCategoryNameInput}
-                  onChange={(e) => setEditCategoryNameInput(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
-                />
-                <p className="text-[11px] text-neutral-400 mt-1">Renaming will automatically update all linked items in Supabase.</p>
+
+            {/* Form Container */}
+            <form onSubmit={handleUpdateCategoryName} className="flex flex-col flex-1 overflow-hidden">
+              {/* Scrollable Body */}
+              <div className="overflow-y-auto p-6 space-y-4 flex-1">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Category Name</label>
+                  <input 
+                    type="text" required
+                    value={editCategoryNameInput}
+                    onChange={(e) => setEditCategoryNameInput(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  />
+                  <p className="text-[11px] text-neutral-400 mt-1">Renaming will automatically update all linked items in Supabase.</p>
+                </div>
               </div>
 
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => setEditingCategory(null)} className="flex-1 bg-neutral-100 font-bold text-neutral-700 py-3 rounded-xl">Cancel</button>
-                <button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-500 font-bold text-white py-3 rounded-xl shadow-lg shadow-purple-600/20">Save Name</button>
+              {/* Sticky Footer */}
+              <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 sticky bottom-0 z-10">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingCategory(null)} 
+                  className="px-5 py-2.5 bg-neutral-200 hover:bg-neutral-300 font-bold text-neutral-700 text-xs rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 font-bold text-white text-xs rounded-xl shadow-md shadow-purple-600/20 transition-all"
+                >
+                  Save Name
+                </button>
               </div>
             </form>
           </div>
@@ -2406,63 +2523,89 @@ export default function AdminDashboard() {
 
       {/* --- ADD / EDIT CUSTOM PAYMENT METHOD MODAL --- */}
       {isCustomPaymentModalOpen && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl animate-fadeIn relative">
-            <button onClick={() => setIsCustomPaymentModalOpen(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600"><X size={20}/></button>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><Wallet size={18}/></div>
-              <h3 className="text-xl font-black text-neutral-900">{editingCustomMethod ? 'Edit Custom Gateway' : 'Add Custom Payment Gateway'}</h3>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsCustomPaymentModalOpen(false); }}
+        >
+          <div className="max-h-[90vh] flex flex-col w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Sticky Header */}
+            <div className="p-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Wallet size={16}/></div>
+                <h3 className="text-lg font-black text-neutral-900">{editingCustomMethod ? 'Edit Custom Gateway' : 'Add Custom Payment Gateway'}</h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsCustomPaymentModalOpen(false)} 
+                className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg hover:bg-neutral-100 transition-colors"
+              >
+                <X size={20}/>
+              </button>
             </div>
-            
-            <form onSubmit={handleSaveCustomPaymentMethod} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Gateway Name *</label>
-                <input 
-                  type="text" required
-                  placeholder="e.g. BOA Digital, Awash Birr"
-                  value={customMethodForm.name}
-                  onChange={(e) => setCustomMethodForm({ ...customMethodForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
-                />
+
+            {/* Form Container */}
+            <form onSubmit={handleSaveCustomPaymentMethod} className="flex flex-col flex-1 overflow-hidden">
+              {/* Scrollable Body */}
+              <div className="overflow-y-auto p-6 space-y-4 flex-1">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Gateway Name *</label>
+                  <input 
+                    type="text" required
+                    placeholder="e.g. BOA Digital, Awash Birr"
+                    value={customMethodForm.name}
+                    onChange={(e) => setCustomMethodForm({ ...customMethodForm, name: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Account / Phone / Merchant Number *</label>
+                  <input 
+                    type="text" required
+                    placeholder="e.g. 013201234567"
+                    value={customMethodForm.account_number}
+                    onChange={(e) => setCustomMethodForm({ ...customMethodForm, account_number: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Account Holder Name *</label>
+                  <input 
+                    type="text" required
+                    placeholder="e.g. ZOM Restaurant & Bar"
+                    value={customMethodForm.account_name}
+                    onChange={(e) => setCustomMethodForm({ ...customMethodForm, account_name: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Status</label>
+                  <select
+                    value={customMethodForm.enabled ? 'true' : 'false'}
+                    onChange={(e) => setCustomMethodForm({ ...customMethodForm, enabled: e.target.value === 'true' })}
+                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+                  >
+                    <option value="true">Enabled (Active on Checkout)</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Account / Phone / Merchant Number *</label>
-                <input 
-                  type="text" required
-                  placeholder="e.g. 013201234567"
-                  value={customMethodForm.account_number}
-                  onChange={(e) => setCustomMethodForm({ ...customMethodForm, account_number: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Account Holder Name *</label>
-                <input 
-                  type="text" required
-                  placeholder="e.g. ZOM Restaurant & Bar"
-                  value={customMethodForm.account_name}
-                  onChange={(e) => setCustomMethodForm({ ...customMethodForm, account_name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Status</label>
-                <select
-                  value={customMethodForm.enabled ? 'true' : 'false'}
-                  onChange={(e) => setCustomMethodForm({ ...customMethodForm, enabled: e.target.value === 'true' })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium bg-white"
+              {/* Sticky Footer */}
+              <div className="p-4 border-t flex justify-end gap-3 bg-gray-50 sticky bottom-0 z-10">
+                <button 
+                  type="button" 
+                  onClick={() => setIsCustomPaymentModalOpen(false)} 
+                  className="px-5 py-2.5 bg-neutral-200 hover:bg-neutral-300 font-bold text-neutral-700 text-xs rounded-xl transition-colors"
                 >
-                  <option value="true">Enabled (Active on Checkout)</option>
-                  <option value="false">Disabled</option>
-                </select>
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => setIsCustomPaymentModalOpen(false)} className="flex-1 bg-neutral-100 font-bold text-neutral-700 py-3 rounded-xl">Cancel</button>
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 font-bold text-white py-3 rounded-xl shadow-lg shadow-blue-600/20">
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 font-bold text-white text-xs rounded-xl shadow-md shadow-blue-600/20 transition-all"
+                >
                   {editingCustomMethod ? 'Update Gateway' : 'Create Gateway'}
                 </button>
               </div>
