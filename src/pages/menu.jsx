@@ -5,7 +5,7 @@ import {
   IceCream, Info, ChevronLeft, ChevronDown, Users, MessageSquare, MapPin, 
   Smartphone, Landmark, CheckCircle2, Search, X, Globe, Clock, Check,
   Bell, BellRing, Receipt, PlusCircle, Upload, Loader2, AlertCircle, ScanText,
-  Banknote, Copy, CreditCard, Wallet
+  Banknote, Copy, CreditCard, Wallet, QrCode
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -242,12 +242,22 @@ export default function App() {
   const [waiterReason, setWaiterReason] = useState('');
   const [customReason, setCustomReason] = useState('');
 
-  // Restore Active Order ID from localStorage if present
+  // Table Locking State
+  const [isTableLocked, setIsTableLocked] = useState(false);
+
+  // Restore Active Order ID & Parse ?table=N URL parameter on mount
   useEffect(() => {
     const savedOrderId = localStorage.getItem('activeOrderId');
     if (savedOrderId) {
       setActiveOrderId(savedOrderId);
       setHasOrdered(true);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const tableParam = params.get('table');
+    if (tableParam) {
+      setOrderDetails(prev => ({ ...prev, tableNumber: tableParam }));
+      setIsTableLocked(true);
     }
   }, []);
 
@@ -772,24 +782,37 @@ export default function App() {
             
             <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-sm space-y-6">
               
-              {/* Table Selection Dropdown */}
+              {/* Table Selection Dropdown / Locked QR Table Indicator */}
               <div>
                 <label className="flex items-center gap-2 font-bold text-neutral-900 mb-2"><MapPin size={18} className="text-orange-500"/> {t.tableNumber} <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select 
-                    value={orderDetails.tableNumber}
-                    onChange={(e) => setOrderDetails({...orderDetails, tableNumber: e.target.value})}
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all font-bold text-lg appearance-none cursor-pointer"
-                  >
-                    <option value="" disabled>{t.tableSelectPrompt}</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                      <option key={num} value={num}>{num}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400">
-                    <ChevronDown size={20} />
+                {isTableLocked ? (
+                  <div className="bg-orange-50 border-2 border-orange-200 text-orange-950 px-4 py-3.5 rounded-xl flex items-center justify-between shadow-sm animate-fadeIn">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-orange-500 text-white rounded-lg"><QrCode size={18} /></div>
+                      <div>
+                        <span className="font-black text-base text-neutral-900 block leading-tight">Table {orderDetails.tableNumber}</span>
+                        <span className="text-[11px] text-orange-700 font-semibold">Automatically assigned via scanned QR code</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black bg-orange-200 text-orange-950 px-2.5 py-1 rounded-full uppercase tracking-wider">Locked</span>
                   </div>
-                </div>
+                ) : (
+                  <div className="relative">
+                    <select 
+                      value={orderDetails.tableNumber}
+                      onChange={(e) => setOrderDetails({...orderDetails, tableNumber: e.target.value})}
+                      className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all font-bold text-lg appearance-none cursor-pointer"
+                    >
+                      <option value="" disabled>{t.tableSelectPrompt}</option>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
+                        <option key={num} value={num}>{num}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400">
+                      <ChevronDown size={20} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-5 border-t border-neutral-100">
