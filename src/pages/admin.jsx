@@ -429,12 +429,14 @@ export default function AdminDashboard() {
         const { data, error } = await supabase
           .from('incoming_sms')
           .select('*')
-          .order('created_at', { ascending: false });
-        if (!error && data) {
+          .order('id', { ascending: false });
+        if (error) {
+          console.error("Failed to query incoming_sms:", error.message || error);
+        } else if (data) {
           setIncomingSmsList(data);
         }
       } catch (e) {
-        console.log("No incoming_sms table yet, fallback to state");
+        console.log("No incoming_sms table or network error, fallback to local state", e);
       }
     };
     fetchSms();
