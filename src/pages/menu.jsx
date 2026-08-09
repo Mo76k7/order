@@ -5,7 +5,7 @@ import {
   IceCream, Info, ChevronLeft, ChevronDown, Users, MessageSquare, MapPin, 
   Smartphone, Landmark, CheckCircle2, Search, X, Globe, Clock, Check,
   Bell, BellRing, Receipt, PlusCircle, Upload, Loader2, AlertCircle, ScanText,
-  Banknote, Copy
+  Banknote, Copy, CreditCard
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -216,6 +216,18 @@ export default function App() {
     paymentMethod: '', paymentId: '', receiptFile: null
   });
 
+  // Payment Settings State (Fetched from Supabase restaurant_settings)
+  const [paymentSettings, setPaymentSettings] = useState({
+    telebirr_enabled: true,
+    cbe_birr_enabled: true,
+    chapa_enabled: true,
+    cash_enabled: true,
+    telebirr_number: '0911234567',
+    cbe_account_number: '1000123456789',
+    cbe_account_name: 'ZOM Restaurant',
+    chapa_merchant_key: 'CHAPA-SECRET-KEY'
+  });
+
   // Verification State
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('idle'); // idle, loading, rejected
@@ -234,6 +246,65 @@ export default function App() {
       setActiveOrderId(savedOrderId);
       setHasOrdered(true);
     }
+  }, []);
+
+  // Fetch Restaurant & Payment Settings from Supabase on mount + Subscribe Realtime
+  useEffect(() => {
+    const fetchRestaurantSettings = async () => {
+      try {
+        const { data, error } = await supabase.from('restaurant_settings').select('*').eq('id', 1).maybeSingle();
+        if (!error && data) {
+          setPaymentSettings({
+            telebirr_enabled: data.telebirr_enabled ?? true,
+            cbe_birr_enabled: data.cbe_birr_enabled ?? true,
+            chapa_enabled: data.chapa_enabled ?? true,
+            cash_enabled: data.cash_enabled ?? true,
+            telebirr_number: data.telebirr_number || '0911234567',
+            cbe_account_number: data.cbe_account_number || '1000123456789',
+            cbe_account_name: data.cbe_account_name || 'ZOM Restaurant',
+            chapa_merchant_key: data.chapa_merchant_key || 'CHAPA-SECRET-KEY'
+          });
+          localStorage.setItem('restaurant_settings', JSON.stringify(data));
+        } else {
+          const cached = localStorage.getItem('restaurant_settings');
+          if (cached) {
+            try {
+              setPaymentSettings(JSON.parse(cached));
+            } catch (e) {}
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch restaurant settings:', err);
+      }
+    };
+
+    fetchRestaurantSettings();
+
+    const settingsChannel = supabase
+      .channel('menu-settings-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'restaurant_settings' },
+        (payload) => {
+          if (payload.new) {
+            setPaymentSettings({
+              telebirr_enabled: payload.new.telebirr_enabled ?? true,
+              cbe_birr_enabled: payload.new.cbe_birr_enabled ?? true,
+              chapa_enabled: payload.new.chapa_enabled ?? true,
+              cash_enabled: payload.new.cash_enabled ?? true,
+              telebirr_number: payload.new.telebirr_number || '0911234567',
+              cbe_account_number: payload.new.cbe_account_number || '1000123456789',
+              cbe_account_name: payload.new.cbe_account_name || 'ZOM Restaurant',
+              chapa_merchant_key: payload.new.chapa_merchant_key || 'CHAPA-SECRET-KEY'
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(settingsChannel);
+    };
   }, []);
 
   // Fetch Menu Items from Supabase on mount
@@ -839,50 +910,77 @@ const formatOrderLabel = (id) => {
             <div className="grid grid-cols-1 gap-3">
               
               {/* Telebirr */}
-              <label className={`relative flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${orderDetails.paymentMethod === 'telebirr' ? 'border-cyan-500 bg-cyan-50 shadow-md' : 'border-neutral-200 bg-white hover:border-cyan-200'}`}>
-                <div className="flex items-center gap-4">
-                  <input type="radio" name="payment" value="telebirr" className="sr-only" onChange={(e) => setOrderDetails({...orderDetails, paymentMethod: e.target.value})} />
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${orderDetails.paymentMethod === 'telebirr' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' : 'bg-cyan-100 text-cyan-600'}`}><Smartphone size={24} /></div>
-                  <div className="flex-grow"><h3 className="font-black text-neutral-900 text-lg tracking-tight">telebirr</h3></div>
-                  {orderDetails.paymentMethod === 'telebirr' && <CheckCircle2 className="text-cyan-500 animate-scaleIn" size={24} />}
-                </div>
-                {orderDetails.paymentMethod === 'telebirr' && (
-                  <div className="mt-4 pt-3 border-t border-cyan-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
-                    <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">Umer</span></p>
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-cyan-200 shadow-sm">
-                      <span className="font-black text-lg tracking-wider text-cyan-700">093 400 9937</span>
-                      <button onClick={(e) => { e.stopPropagation(); copyToClipboard('0934009937'); }} className="text-cyan-700 hover:bg-cyan-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
-                    </div>
+              {paymentSettings.telebirr_enabled && (
+                <label className={`relative flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${orderDetails.paymentMethod === 'telebirr' ? 'border-cyan-500 bg-cyan-50 shadow-md' : 'border-neutral-200 bg-white hover:border-cyan-200'}`}>
+                  <div className="flex items-center gap-4">
+                    <input type="radio" name="payment" value="telebirr" className="sr-only" onChange={(e) => setOrderDetails({...orderDetails, paymentMethod: e.target.value})} />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${orderDetails.paymentMethod === 'telebirr' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' : 'bg-cyan-100 text-cyan-600'}`}><Smartphone size={24} /></div>
+                    <div className="flex-grow"><h3 className="font-black text-neutral-900 text-lg tracking-tight">telebirr</h3></div>
+                    {orderDetails.paymentMethod === 'telebirr' && <CheckCircle2 className="text-cyan-500 animate-scaleIn" size={24} />}
                   </div>
-                )}
-              </label>
+                  {orderDetails.paymentMethod === 'telebirr' && (
+                    <div className="mt-4 pt-3 border-t border-cyan-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
+                      <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">{paymentSettings.cbe_account_name || 'ZOM Tech'}</span></p>
+                      <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-cyan-200 shadow-sm">
+                        <span className="font-black text-lg tracking-wider text-cyan-700">{paymentSettings.telebirr_number}</span>
+                        <button onClick={(e) => { e.stopPropagation(); copyToClipboard(paymentSettings.telebirr_number); }} className="text-cyan-700 hover:bg-cyan-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
+                      </div>
+                    </div>
+                  )}
+                </label>
+              )}
 
               {/* CBE Birr */}
-              <label className={`relative flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${orderDetails.paymentMethod === 'cbe' ? 'border-purple-600 bg-purple-50 shadow-md' : 'border-neutral-200 bg-white hover:border-purple-200'}`}>
-                <div className="flex items-center gap-4">
-                  <input type="radio" name="payment" value="cbe" className="sr-only" onChange={(e) => setOrderDetails({...orderDetails, paymentMethod: e.target.value})} />
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${orderDetails.paymentMethod === 'cbe' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-purple-100 text-purple-600'}`}><Landmark size={24} /></div>
-                  <div className="flex-grow"><h3 className="font-black text-neutral-900 text-lg tracking-tight">CBE Birr</h3></div>
-                  {orderDetails.paymentMethod === 'cbe' && <CheckCircle2 className="text-purple-600 animate-scaleIn" size={24} />}
-                </div>
-                {orderDetails.paymentMethod === 'cbe' && (
-                  <div className="mt-4 pt-3 border-t border-purple-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
-                    <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">Umer</span></p>
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-purple-200 shadow-sm">
-                      <span className="font-black text-lg tracking-wider text-purple-700">1000739055718</span>
-                      <button onClick={(e) => { e.stopPropagation(); copyToClipboard('1000739055718'); }} className="text-purple-700 hover:bg-purple-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
-                    </div>
+              {paymentSettings.cbe_birr_enabled && (
+                <label className={`relative flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${orderDetails.paymentMethod === 'cbe' ? 'border-purple-600 bg-purple-50 shadow-md' : 'border-neutral-200 bg-white hover:border-purple-200'}`}>
+                  <div className="flex items-center gap-4">
+                    <input type="radio" name="payment" value="cbe" className="sr-only" onChange={(e) => setOrderDetails({...orderDetails, paymentMethod: e.target.value})} />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${orderDetails.paymentMethod === 'cbe' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-purple-100 text-purple-600'}`}><Landmark size={24} /></div>
+                    <div className="flex-grow"><h3 className="font-black text-neutral-900 text-lg tracking-tight">CBE Birr</h3></div>
+                    {orderDetails.paymentMethod === 'cbe' && <CheckCircle2 className="text-purple-600 animate-scaleIn" size={24} />}
                   </div>
-                )}
-              </label>
+                  {orderDetails.paymentMethod === 'cbe' && (
+                    <div className="mt-4 pt-3 border-t border-purple-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
+                      <p className="text-xs text-neutral-600 mb-1">{t.accountName}: <span className="font-bold text-neutral-900">{paymentSettings.cbe_account_name}</span></p>
+                      <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-purple-200 shadow-sm">
+                        <span className="font-black text-lg tracking-wider text-purple-700">{paymentSettings.cbe_account_number}</span>
+                        <button onClick={(e) => { e.stopPropagation(); copyToClipboard(paymentSettings.cbe_account_number); }} className="text-purple-700 hover:bg-purple-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
+                      </div>
+                    </div>
+                  )}
+                </label>
+              )}
+
+              {/* Chapa */}
+              {paymentSettings.chapa_enabled && (
+                <label className={`relative flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${orderDetails.paymentMethod === 'chapa' ? 'border-emerald-500 bg-emerald-50 shadow-md' : 'border-neutral-200 bg-white hover:border-emerald-200'}`}>
+                  <div className="flex items-center gap-4">
+                    <input type="radio" name="payment" value="chapa" className="sr-only" onChange={(e) => setOrderDetails({...orderDetails, paymentMethod: e.target.value})} />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${orderDetails.paymentMethod === 'chapa' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-emerald-100 text-emerald-600'}`}><CreditCard size={24} /></div>
+                    <div className="flex-grow"><h3 className="font-black text-neutral-900 text-lg tracking-tight">Chapa Pay</h3></div>
+                    {orderDetails.paymentMethod === 'chapa' && <CheckCircle2 className="text-emerald-500 animate-scaleIn" size={24} />}
+                  </div>
+                  {orderDetails.paymentMethod === 'chapa' && (
+                    <div className="mt-4 pt-3 border-t border-emerald-200 animate-fadeIn" onClick={(e) => e.preventDefault()}>
+                      <p className="text-xs text-neutral-600 mb-1">Merchant Account Key: <span className="font-bold text-neutral-900">{paymentSettings.chapa_merchant_key || 'Chapa'}</span></p>
+                      <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-emerald-200 shadow-sm">
+                        <span className="font-black text-xs tracking-wider text-emerald-700 truncate max-w-[220px]">{paymentSettings.chapa_merchant_key}</span>
+                        <button onClick={(e) => { e.stopPropagation(); copyToClipboard(paymentSettings.chapa_merchant_key); }} className="text-emerald-700 hover:bg-emerald-100 p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"><Copy size={16}/> {t.copy}</button>
+                      </div>
+                    </div>
+                  )}
+                </label>
+              )}
 
               {/* Cash Payment */}
-              <label className={`relative flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${orderDetails.paymentMethod === 'cash' ? 'border-orange-500 bg-orange-50 shadow-md' : 'border-neutral-200 bg-white hover:border-orange-200'}`}>
-                <input type="radio" name="payment" value="cash" className="sr-only" onChange={(e) => setOrderDetails({...orderDetails, paymentMethod: e.target.value})} />
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${orderDetails.paymentMethod === 'cash' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-orange-100 text-orange-600'}`}><Banknote size={24} /></div>
-                <div className="flex-grow"><h3 className="font-black text-neutral-900 text-lg tracking-tight">{t.cash}</h3></div>
-                {orderDetails.paymentMethod === 'cash' && <CheckCircle2 className="text-orange-500 animate-scaleIn" size={24} />}
-              </label>
+              {paymentSettings.cash_enabled && (
+                <label className={`relative flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${orderDetails.paymentMethod === 'cash' ? 'border-orange-500 bg-orange-50 shadow-md' : 'border-neutral-200 bg-white hover:border-orange-200'}`}>
+                  <input type="radio" name="payment" value="cash" className="sr-only" onChange={(e) => setOrderDetails({...orderDetails, paymentMethod: e.target.value})} />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${orderDetails.paymentMethod === 'cash' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-orange-100 text-orange-600'}`}><Banknote size={24} /></div>
+                  <div className="flex-grow"><h3 className="font-black text-neutral-900 text-lg tracking-tight">{t.cash}</h3></div>
+                  {orderDetails.paymentMethod === 'cash' && <CheckCircle2 className="text-orange-500 animate-scaleIn" size={24} />}
+                </label>
+              )}
 
             </div>
           </div>

@@ -7,7 +7,8 @@ import {
   ChevronDown, ArrowUpRight, TrendingUp, Calendar, ShoppingBag,
   Megaphone, Tag, Download, MessageSquare, CheckCircle2, ChevronRight,
   Menu as MenuIcon, X, UtensilsCrossed, Smartphone, Check, QrCode, RefreshCw,
-  Pencil, Trash2, AlertTriangle, Eye, EyeOff, FolderEdit, FolderMinus, List
+  Pencil, Trash2, AlertTriangle, Eye, EyeOff, FolderEdit, FolderMinus, List,
+  CreditCard, Banknote, Landmark
 } from 'lucide-react';
 
 // --- TRANSLATIONS ---
@@ -168,6 +169,18 @@ export default function AdminDashboard() {
     currency: 'ETB (Br)'
   });
 
+  // Payment Configuration Settings State
+  const [paymentSettings, setPaymentSettings] = useState({
+    telebirr_enabled: true,
+    cbe_birr_enabled: true,
+    chapa_enabled: true,
+    cash_enabled: true,
+    telebirr_number: '0911234567',
+    cbe_account_number: '1000123456789',
+    cbe_account_name: 'ZOM Restaurant',
+    chapa_merchant_key: 'CHAPA-SECRET-KEY'
+  });
+
   const t = TRANSLATIONS[lang];
 
   // Fetch live database rows & subscribe to realtime channel
@@ -177,20 +190,48 @@ export default function AdminDashboard() {
     const todayISO = startOfToday.toISOString();
 
     const fetchData = async () => {
-      const [ordersRes, menuRes, waiterRes] = await Promise.all([
+      const [ordersRes, menuRes, waiterRes, settingsRes] = await Promise.all([
         supabase.from('orders').select('*').gte('created_at', todayISO).order('created_at', { ascending: false }),
         supabase.from('menu_items').select('*').order('id', { ascending: true }),
-        supabase.from('waiter_calls').select('*').gte('created_at', todayISO).order('created_at', { ascending: false })
+        supabase.from('waiter_calls').select('*').gte('created_at', todayISO).order('created_at', { ascending: false }),
+        supabase.from('restaurant_settings').select('*').eq('id', 1).maybeSingle()
       ]);
       
       if (ordersRes.data) setOrders(ordersRes.data);
       if (menuRes.data) {
         setMenuItems(menuRes.data);
-        // Synchronize categories dynamically
         const dbCats = Array.from(new Set(menuRes.data.map(m => m.category).filter(Boolean)));
         setCategoriesList(prev => Array.from(new Set([...prev, ...dbCats])));
       }
       if (waiterRes.data) setWaiterCalls(waiterRes.data);
+      if (settingsRes.data) {
+        setSettingsForm({
+          name: settingsRes.data.name || 'ZOM Restaurant & Bar',
+          phone: settingsRes.data.phone || '+251 91 123 4567',
+          hours: settingsRes.data.hours || '08:00 AM - 11:00 PM',
+          taxRate: (settingsRes.data.tax_rate ?? 15).toString(),
+          currency: settingsRes.data.currency || 'ETB (Br)'
+        });
+        setPaymentSettings({
+          telebirr_enabled: settingsRes.data.telebirr_enabled ?? true,
+          cbe_birr_enabled: settingsRes.data.cbe_birr_enabled ?? true,
+          chapa_enabled: settingsRes.data.chapa_enabled ?? true,
+          cash_enabled: settingsRes.data.cash_enabled ?? true,
+          telebirr_number: settingsRes.data.telebirr_number || '0911234567',
+          cbe_account_number: settingsRes.data.cbe_account_number || '1000123456789',
+          cbe_account_name: settingsRes.data.cbe_account_name || 'ZOM Restaurant',
+          chapa_merchant_key: settingsRes.data.chapa_merchant_key || 'CHAPA-SECRET-KEY'
+        });
+        localStorage.setItem('restaurant_settings', JSON.stringify(settingsRes.data));
+      } else {
+        const cached = localStorage.getItem('restaurant_settings');
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            setPaymentSettings(parsed);
+          } catch(e) {}
+        }
+      }
     };
 
     fetchData();
@@ -564,7 +605,6 @@ export default function AdminDashboard() {
     }
 
     try {
-      // Update Supabase menu_items category column
       const { error } = await supabase
         .from('menu_items')
         .update({ category: newName })
@@ -575,13 +615,9 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Update categoriesList state
       setCategoriesList(prev => prev.map(c => c === oldName ? newName : c));
-
-      // Update menuItems local state
       setMenuItems(prev => prev.map(item => item.category === oldName ? { ...item, category: newName } : item));
 
-      // Reset filter if active
       if (menuCategoryFilter === oldName) {
         setMenuCategoryFilter(newName);
       }
@@ -602,7 +638,6 @@ export default function AdminDashboard() {
     if (!window.confirm(confirmText)) return;
 
     try {
-      // Delete linked items in Supabase
       if (linkedItems.length > 0) {
         const { error: deleteError } = await supabase
           .from('menu_items')
@@ -615,7 +650,6 @@ export default function AdminDashboard() {
         }
       }
 
-      // Update state
       setCategoriesList(prev => prev.filter(c => c.toLowerCase() !== catToDelete.toLowerCase()));
       setMenuItems(prev => prev.filter(m => (m.category || '').toLowerCase() !== catToDelete.toLowerCase()));
 
@@ -624,6 +658,40 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error("Error deleting category:", err);
+    }
+  };
+
+  // --- SAVE RESTAURANT & PAYMENT SETTINGS TO SUPABASE & LOCALSTORAGE ---
+  const handleSaveSettings = async () => {
+    const payload = {
+      id: 1,
+      name: settingsForm.name,
+      phone: settingsForm.phone,
+      hours: settingsForm.hours,
+      tax_rate: parseFloat(settingsForm.taxRate) || 15,
+      currency: settingsForm.currency,
+      telebirr_enabled: paymentSettings.telebirr_enabled,
+      cbe_birr_enabled: paymentSettings.cbe_birr_enabled,
+      chapa_enabled: paymentSettings.chapa_enabled,
+      cash_enabled: paymentSettings.cash_enabled,
+      telebirr_number: paymentSettings.telebirr_number,
+      cbe_account_number: paymentSettings.cbe_account_number,
+      cbe_account_name: paymentSettings.cbe_account_name,
+      chapa_merchant_key: paymentSettings.chapa_merchant_key,
+      updated_at: new Date().toISOString()
+    };
+
+    localStorage.setItem('restaurant_settings', JSON.stringify(payload));
+
+    try {
+      const { error } = await supabase.from('restaurant_settings').upsert(payload);
+      if (error) {
+        alert("Settings saved locally! (Supabase status: " + error.message + ")");
+      } else {
+        alert("Operational and Payment Settings successfully saved to database!");
+      }
+    } catch (err) {
+      alert("Saved to local storage.");
     }
   };
 
@@ -1425,33 +1493,41 @@ export default function AdminDashboard() {
     );
   };
 
-  // 8. SETTINGS VIEW
+  // 8. SETTINGS VIEW (OPERATIONAL & PAYMENT METHOD CONFIGURATION)
   const renderSettingsView = () => (
-    <div className="space-y-6 max-w-3xl animate-fadeIn">
+    <div className="space-y-6 max-w-4xl animate-fadeIn">
       <div>
-        <h2 className="text-2xl font-black tracking-tight text-neutral-900">Restaurant Settings</h2>
-        <p className="text-neutral-500 text-xs font-medium mt-1">General operational parameters and configuration</p>
+        <h2 className="text-2xl font-black tracking-tight text-neutral-900">Restaurant Settings & Configuration</h2>
+        <p className="text-neutral-500 text-xs font-medium mt-1">Manage operational details, payment method toggles, and receiver account credentials</p>
       </div>
 
+      {/* Operational Settings */}
       <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-md space-y-5">
-        <div>
-          <label className="block text-xs font-bold text-neutral-700 mb-1">Restaurant Name</label>
-          <input 
-            type="text" 
-            value={settingsForm.name} 
-            onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
-            className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-          />
+        <h3 className="font-bold text-lg text-neutral-900 border-b border-neutral-100 pb-3 flex items-center gap-2">
+          <Store className="text-orange-500" size={20} /> General Operational Profile
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 mb-1">Restaurant Name</label>
+            <input 
+              type="text" 
+              value={settingsForm.name} 
+              onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
+              className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 mb-1">Contact Phone</label>
+            <input 
+              type="text" 
+              value={settingsForm.phone} 
+              onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value })}
+              className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+            />
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-bold text-neutral-700 mb-1">Contact Phone</label>
-          <input 
-            type="text" 
-            value={settingsForm.phone} 
-            onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value })}
-            className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-          />
-        </div>
+
         <div>
           <label className="block text-xs font-bold text-neutral-700 mb-1">Operating Hours</label>
           <input 
@@ -1461,6 +1537,7 @@ export default function AdminDashboard() {
             className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
           />
         </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-neutral-700 mb-1">Tax Rate (%)</label>
@@ -1481,8 +1558,171 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
-        <button onClick={() => alert("Settings saved successfully!")} className="bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg shadow-orange-600/20">
-          Save Operational Settings
+      </div>
+
+      {/* Payment Settings & Configuration Card */}
+      <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-md space-y-6">
+        <div className="border-b border-neutral-100 pb-4">
+          <h3 className="font-bold text-lg text-neutral-900 flex items-center gap-2">
+            <CreditCard className="text-orange-500" size={20} /> Payment Settings & Gateways
+          </h3>
+          <p className="text-xs text-neutral-500 mt-0.5">Enable or disable payment methods and configure customer receiving account numbers.</p>
+        </div>
+
+        {/* SUBSECTION A: PAYMENT METHODS TOGGLE */}
+        <div>
+          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">A. Payment Methods Toggle (Enable/Disable)</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            {/* Telebirr Toggle */}
+            <div className={`p-4 rounded-xl border-2 transition-all flex items-center justify-between ${paymentSettings.telebirr_enabled ? 'border-cyan-500 bg-cyan-50/50' : 'border-neutral-200 bg-neutral-50'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-lg ${paymentSettings.telebirr_enabled ? 'bg-cyan-500 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                  <Smartphone size={20} />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-neutral-900 block">Telebirr</span>
+                  <span className="text-[11px] text-neutral-500">{paymentSettings.telebirr_enabled ? 'Active on Checkout' : 'Disabled'}</span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={paymentSettings.telebirr_enabled}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, telebirr_enabled: e.target.checked })}
+                  className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+              </label>
+            </div>
+
+            {/* CBE Birr Toggle */}
+            <div className={`p-4 rounded-xl border-2 transition-all flex items-center justify-between ${paymentSettings.cbe_birr_enabled ? 'border-purple-600 bg-purple-50/50' : 'border-neutral-200 bg-neutral-50'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-lg ${paymentSettings.cbe_birr_enabled ? 'bg-purple-600 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                  <Landmark size={20} />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-neutral-900 block">CBE Birr</span>
+                  <span className="text-[11px] text-neutral-500">{paymentSettings.cbe_birr_enabled ? 'Active on Checkout' : 'Disabled'}</span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={paymentSettings.cbe_birr_enabled}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, cbe_birr_enabled: e.target.checked })}
+                  className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+
+            {/* Chapa Toggle */}
+            <div className={`p-4 rounded-xl border-2 transition-all flex items-center justify-between ${paymentSettings.chapa_enabled ? 'border-emerald-500 bg-emerald-50/50' : 'border-neutral-200 bg-neutral-50'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-lg ${paymentSettings.chapa_enabled ? 'bg-emerald-500 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                  <CreditCard size={20} />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-neutral-900 block">Chapa</span>
+                  <span className="text-[11px] text-neutral-500">{paymentSettings.chapa_enabled ? 'Active on Checkout' : 'Disabled'}</span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={paymentSettings.chapa_enabled}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, chapa_enabled: e.target.checked })}
+                  className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+              </label>
+            </div>
+
+            {/* Cash to Waiter Toggle */}
+            <div className={`p-4 rounded-xl border-2 transition-all flex items-center justify-between ${paymentSettings.cash_enabled ? 'border-orange-500 bg-orange-50/50' : 'border-neutral-200 bg-neutral-50'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-lg ${paymentSettings.cash_enabled ? 'bg-orange-500 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                  <Banknote size={20} />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-neutral-900 block">Cash to Waiter</span>
+                  <span className="text-[11px] text-neutral-500">{paymentSettings.cash_enabled ? 'Active on Checkout' : 'Disabled'}</span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={paymentSettings.cash_enabled}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, cash_enabled: e.target.checked })}
+                  className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+              </label>
+            </div>
+
+          </div>
+        </div>
+
+        {/* SUBSECTION B: PAYMENT ACCOUNT DETAILS FORM */}
+        <div className="pt-4 border-t border-neutral-100 space-y-4">
+          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">B. Payment Receiver Account Credentials</h4>
+          
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 mb-1">Telebirr Merchant / Phone Number</label>
+            <input 
+              type="text" 
+              placeholder="e.g. 0911234567"
+              value={paymentSettings.telebirr_number}
+              onChange={(e) => setPaymentSettings({ ...paymentSettings, telebirr_number: e.target.value })}
+              className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">CBE Birr Account Number</label>
+              <input 
+                type="text" 
+                placeholder="e.g. 1000123456789"
+                value={paymentSettings.cbe_account_number}
+                onChange={(e) => setPaymentSettings({ ...paymentSettings, cbe_account_number: e.target.value })}
+                className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">CBE Account Holder Name</label>
+              <input 
+                type="text" 
+                placeholder="e.g. ZOM Restaurant & Bar"
+                value={paymentSettings.cbe_account_name}
+                onChange={(e) => setPaymentSettings({ ...paymentSettings, cbe_account_name: e.target.value })}
+                className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 mb-1">Chapa Public Key / Merchant Account</label>
+            <input 
+              type="text" 
+              placeholder="e.g. CHAPUBK_TEST-xxxxxxxxxxxx"
+              value={paymentSettings.chapa_merchant_key}
+              onChange={(e) => setPaymentSettings({ ...paymentSettings, chapa_merchant_key: e.target.value })}
+              className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <button 
+          onClick={handleSaveSettings} 
+          className="bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm px-8 py-3.5 rounded-xl shadow-lg shadow-orange-600/20 transition-all flex items-center gap-2 active:scale-95"
+        >
+          <Check size={18} /> Save Restaurant & Payment Settings
         </button>
       </div>
     </div>
